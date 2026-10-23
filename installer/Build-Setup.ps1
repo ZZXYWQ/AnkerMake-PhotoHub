@@ -1,7 +1,7 @@
 param([string]$PayloadRoot,[string]$Manifest,[string]$Output)
 if (!$PayloadRoot) { $PayloadRoot=Join-Path $PSScriptRoot '..\payload' }
 if (!$Manifest) { $Manifest=Join-Path $PSScriptRoot '..\manifest.json' }
-if (!$Output) { $Output=Join-Path $PSScriptRoot '..\dist\EufyPhotoHub-Setup-0.3.0.exe' }
+if (!$Output) { $Output=Join-Path $PSScriptRoot '..\dist\PhotoHub-AnkerMake-Plugin-0.6.1-Public-Beta-Win10-Win11-x64.exe' }
 $ErrorActionPreference='Stop'
 $build=Join-Path $PSScriptRoot ('build-'+[Guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($build)|Out-Null

@@ -1,0 +1,7 @@
+MinHook 1.3.4, TsudaKageyu and contributors, BSD 2-clause.
+Source: https://github.com/TsudaKageyu/minhook/archive/refs/tags/v1.3.4.zip
+Archive SHA256: 172708123daa0c98d20d3a980b16a50be14af243dc95dee6f79c24193ad010e4
+License is included in the installation as native/MinHook-LICENSE.txt.
+Built with official portable Zig 0.17.0, x86_64-windows-gnu.
+No modification to the original signed executable or ColorEngineAPI.dll on disk.
+Only the exact SHA256-checked eufyMake 5.0.4 RIP ABI is supported.

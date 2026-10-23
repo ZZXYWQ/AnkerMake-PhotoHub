@@ -1,0 +1,10 @@
+* text=auto
+*.ps1 text eol=crlf
+*.cs text eol=crlf
+*.c text eol=lf
+*.h text eol=lf
+*.js text eol=lf
+*.cjs text eol=lf
+*.py text eol=lf
+licenses/** -whitespace
+native/vendor/** -whitespace

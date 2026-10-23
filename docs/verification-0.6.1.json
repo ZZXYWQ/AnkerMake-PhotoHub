@@ -1,0 +1,72 @@
+{
+  "pass": true,
+  "scope": "current PSD -> original roll tar -> original local native RIP -> final 4 PRN files",
+  "physicalPrintDispatched": false,
+  "nativePlaneOrder": "KCMYW1W2",
+  "sourcePolicy": [
+    2521,
+    4724
+  ],
+  "printPixels": 548989024,
+  "planes": [
+    {
+      "plane": 0,
+      "nonzeroDots": 689579,
+      "excludedChecked": 537075016,
+      "excludedNonzero": 0,
+      "selectedChecked": 11914008,
+      "selectedChanged": 0
+    },
+    {
+      "plane": 1,
+      "nonzeroDots": 7657,
+      "excludedChecked": 546345204,
+      "excludedNonzero": 0,
+      "selectedChecked": 2643820,
+      "selectedChanged": 0
+    },
+    {
+      "plane": 2,
+      "nonzeroDots": 69617,
+      "excludedChecked": 546923932,
+      "excludedNonzero": 0,
+      "selectedChecked": 2065092,
+      "selectedChanged": 0
+    },
+    {
+      "plane": 3,
+      "nonzeroDots": 3743697,
+      "excludedChecked": 501865696,
+      "excludedNonzero": 0,
+      "selectedChecked": 47123328,
+      "selectedChanged": 0
+    },
+    {
+      "plane": 4,
+      "nonzeroDots": 0
+    },
+    {
+      "plane": 5,
+      "nonzeroDots": 0
+    }
+  ],
+  "whiteGlossChanged": 0,
+  "colorPaddingNonzero": 0,
+  "failures": 0,
+  "nativeHook": {
+    "fault": 0,
+    "rows": 90712,
+    "files": 4,
+    "bytes": 827293440,
+    "sourcePixels": 11909204,
+    "testPolicyHelperUsed": false
+  },
+  "fixes": [
+    "Preserve and rotate phCm layer policy during original roll tar packaging",
+    "Bind exact source policy for native Print2DModeHandler::excute creative/roll path",
+    "Map UI C/M/Y/K bits to native physical K/C/M/Y plane order"
+  ],
+  "boundary": "Original local ColorEngineAPI native RIP with captured current PSD package and explicit offline native job parameters; output callbacks only copy local files. No printer transfer or device callbacks.",
+  "comparisonSource": "Same native RIP run results/0000..0003.prn before PhotoHub private-copy filtering; separate runs use nondeterministic dithering and are not used for selected-dot equality",
+  "release": "0.6.1"
+}

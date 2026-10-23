@@ -1,0 +1,31 @@
+{
+  "pluginPath": "eufymake-photocraft",
+  "files": [
+    {
+      "path": "assets/main.editor.js",
+      "patches": [
+        {
+          "count": 1,
+          "old": "ti=(br,ti)=>br>3e4||ti>3e4?`string_image_side_limit_exceeded`:br*ti>16384e4?ei[ai]:null",
+          "new": "ti=(br,ti)=>window.__EUFY_PHOTOCRAFT_LARGE_IMAGES===true?null:br>3e4||ti>3e4?`string_image_side_limit_exceeded`:br*ti>16384e4?ei[ai]:null"
+        },
+        {
+          "count": 1,
+          "old": "bootstrap()})();",
+          "new": ";window.__EPC_HOST=(()=>{const ids=new WeakMap();let seq=0;const manager=()=>{init_ProjectManager();return ProjectManager.getInstance();};return {manager:()=>manager(),editor:()=>{const m=manager();return m.getProjectData()?m.canvasEditor:null;},project:()=>{const p=manager().getProjectData();if(!p)return null;let id=p.project_info?.project_id;if(id===undefined||id===null||id===''){if(!ids.has(p))ids.set(p,++seq);id='local-'+ids.get(p);}return String(id)+':canvas:'+String(p.canvasesIndex??0);},dpi:()=>manager().getCanvasDpi(),loading:()=>{const m=manager();return !!(m.isLoadingProject||m._isLoadFirstInProgress||m.localProjectLoadFailed||m.projectLoadFailed);},original:async obj=>await loadOriginalElement(obj)};})();bootstrap()})();"
+        }
+      ],
+      "sha256": "6d70c714373fa9b46ff1a4656d1d3266445527a348593134b8d86274fad994fc"
+    }
+  ],
+  "version": "0.6.1",
+  "hostEditorVersion": "1.22.03",
+  "entryScript": "main.editor.js",
+  "indexPath": "index.html",
+  "nativeInjection": false,
+  "onlineIntegration": "cdp",
+  "nativeInkSha256": "17a8593d0517e205e8131d924b9e156211ea4f50210f8bfe575cdcecc438c849",
+  "productName": "AnkerMake PhotoHub 插件",
+  "releaseChannel": "public-beta",
+  "supportedHostVersion": "5.0.4"
+}

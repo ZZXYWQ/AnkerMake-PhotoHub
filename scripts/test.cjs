@@ -1,0 +1,1 @@
+const{spawnSync}=require('node:child_process');for(const f of ['layer-ink.test.cjs','layer-ink-rotation.test.cjs','contours.test.cjs','large-image-import.test.cjs']){const r=spawnSync(process.execPath,['tests/'+f],{stdio:'inherit'});if(r.status!==0)process.exit(r.status||1);}

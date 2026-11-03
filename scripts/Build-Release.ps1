@@ -1,4 +1,4 @@
-param([string]$Python='python',[string]$Zig=$env:ZIG_EXE)
+﻿param([string]$Python='python',[string]$Zig=$env:ZIG_EXE)
 $ErrorActionPreference='Stop'
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $priorCommandShell=$env:ComSpec
@@ -37,9 +37,9 @@ try {
     if($LASTEXITCODE){throw 'Bridge build failed'}
     & node scripts/stage.cjs
     if($LASTEXITCODE){throw 'Payload staging failed'}
-    $package=Join-Path $projectRoot 'dist/PhotoHub-AnkerMake-Plugin-0.6.1-Public-Beta-Win10-Win11-x64.exe'
-    & "$PSScriptRoot/../installer/Build-Setup.ps1" -PayloadRoot "$projectRoot/dist/release-payload-0.6.1" -Manifest "$projectRoot/manifest.json" -Output $package
-    & "$PSScriptRoot/../installer/Test-Package.ps1" -Package $package -PayloadRoot "$projectRoot/dist/release-payload-0.6.1"
+    $package=Join-Path $projectRoot 'dist/PhotoHub-AnkerMake-Plugin-0.7.0-Public-Beta-Win10-Win11-x64.exe'
+    & "$PSScriptRoot/../installer/Build-Setup.ps1" -PayloadRoot "$projectRoot/dist/release-payload-0.7.0" -Manifest "$projectRoot/manifest.json" -Output $package
+    & "$PSScriptRoot/../installer/Test-Package.ps1" -Package $package -PayloadRoot "$projectRoot/dist/release-payload-0.7.0"
     $hash=(Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLower()
     [IO.File]::WriteAllText((Join-Path $projectRoot 'dist/SHA256SUMS.txt'),$hash+'  '+[IO.Path]::GetFileName($package)+"`n",(New-Object Text.UTF8Encoding($false)))
 } finally { $env:ComSpec=$priorCommandShell; Pop-Location }

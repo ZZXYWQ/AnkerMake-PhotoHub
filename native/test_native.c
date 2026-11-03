@@ -22,7 +22,7 @@ static void streamInit(uint8_t *stream,uint8_t *stop){memset(stream,0,0x140);*(v
 }
 static State *connectState(void){WCHAR name[80];swprintf(name,80,L"Local\\PhotoHubInk-%lu",GetCurrentProcessId());for(int i=0;i<200;i++){HANDLE m=OpenFileMappingW(FILE_MAP_ALL_ACCESS,0,name);if(m){State*s=MapViewOfFile(m,FILE_MAP_ALL_ACCESS,0,0,sizeof(State));if(s->fault){fprintf(stderr,"init fault %ld\n",s->fault);ExitProcess(4);}if(s->ready)return s;}Sleep(30);}CHECK(0);return 0;}
 static void setMask(State*s,int mask){s->command=mask;LONG seq=InterlockedIncrement(&s->sequence);for(int i=0;i<100&&s->acknowledged!=seq;i++)Sleep(30);CHECK(s->acknowledged==seq&&s->result==0&&s->effective==mask);}
-int main(int argc,char **argv){CHECK(argc==3);WCHAR host[32768],hook[32768];MultiByteToWideChar(CP_UTF8,0,argv[1],-1,host,32768);MultiByteToWideChar(CP_UTF8,0,argv[2],-1,hook,32768);CHECK(SetDllDirectoryW(host));WCHAR full[32768];swprintf(full,32768,L"%ls\\ColorEngineAPI.dll",host);dll=LoadLibraryW(full);CHECK(dll);
+int main(int argc,char **argv){setvbuf(stdout,0,_IONBF,0);CHECK(argc==3||argc==4);int onlyMask=argc==4?atoi(argv[3]):-1;CHECK(onlyMask>=-1&&onlyMask<=15);WCHAR host[32768],hook[32768];MultiByteToWideChar(CP_UTF8,0,argv[1],-1,host,32768);MultiByteToWideChar(CP_UTF8,0,argv[2],-1,hook,32768);CHECK(SetDllDirectoryW(host));WCHAR full[32768];swprintf(full,32768,L"%ls\\ColorEngineAPI.dll",host);dll=LoadLibraryW(full);CHECK(dll);
  void*(*ctor)(void*)=sym("??0PrnFileHandler@AnkerMake@@QEAA@XZ");void(*dtor)(void*)=sym("??1PrnFileHandler@AnkerMake@@QEAA@XZ");
  int(*create)(void*,unsigned,unsigned,unsigned,unsigned,unsigned)=sym("?createEmpty@PrnFileHandler@AnkerMake@@QEAA_NIIIII@Z");
  int(*set)(void*,int,int,int,uint8_t)=sym("?setDropValue@PrnFileHandler@AnkerMake@@QEAA_NHHHE@Z");
@@ -39,7 +39,7 @@ int main(int argc,char **argv){CHECK(argc==3);WCHAR host[32768],hook[32768];Mult
  void *(*nativeMalloc)(size_t)=(void*)GetProcAddress(GetModuleHandleW(L"ucrtbase.dll"),"malloc");CHECK(nativeMalloc);
  puts("native PRN codec roundtrip passed (19x7, 6 channels, 2-bit)");
  FILE *auditFile=fopen("tests/native-ink-audit.jsonl","wb");CHECK(auditFile);
- for(int mask=0;mask<16;mask++){
+ for(int mask=onlyMask<0?0:onlyMask;mask<(onlyMask<0?16:onlyMask+1);mask++){
   setMask(s,mask);uint8_t stream[0x140],stop=0,head[0x120]={0};streamInit(stream,&stop);used=0;
   *(void**)head=sym("??_7PrintHeadItem@AnkerMake@@6B@");*(uint32_t*)(head+0xc)=6;*(uint32_t*)(head+0x48)=1;*(uint32_t*)(head+0x4c)=1;memcpy(head+0x50,raw,48);*(size_t*)(head+0x98)=15;
   void *shared[2]={head,0};CHECK(process(stream,shared)==0);
@@ -55,13 +55,15 @@ int main(int argc,char **argv){CHECK(argc==3);WCHAR host[32768],hook[32768];Mult
   printf("mask %02d: native live rows + blocks + cached/file PRN callbacks passed; unselected zero, selected/W/G exact\n",mask);
  }
  fclose(auditFile);
+ if(onlyMask>=0){CHECK(s->fault==0);printf("PASS isolated mask %d; local-only native row, block, cached and file callback paths\n",onlyMask);return 0;}
  s->busy=1;s->command=1;LONG seq=InterlockedIncrement(&s->sequence);for(int i=0;i<100&&s->acknowledged!=seq;i++)Sleep(30);CHECK(s->result==1&&s->requested==15);s->busy=0;
  CHECK(headCalls==48&&blockCalls==336&&fileCalls==16);
  /* Browser-generated print PNG -> native phCm parser -> actual original native
     output callbacks. No print-device or network callbacks are installed. */
  HMODULE testHook=GetModuleHandleW(L"PhotoHubInk-test.dll");CHECK(testHook);int(*testPolicy)(const WCHAR*)=(void*)GetProcAddress(testHook,"PhotoHubTestPolicy");CHECK(testPolicy);
  const WCHAR *policyPng=L"tests/layer-ink-print.png";CHECK(testPolicy(policyPng));PHPolicy policy={0};CHECK(ph_load_policy_png(policyPng,&policy)==1);
- int(*testParam)(void*)=(void*)GetProcAddress(testHook,"PhotoHubTestPolicyParam");CHECK(testParam);uint8_t params[0x640]={0},*mapHead=nativeMalloc(0x90);memset(mapHead,0,0x90);*(void**)mapHead=*(void**)(mapHead+8)=*(void**)(mapHead+16)=mapHead;mapHead[0x18]=mapHead[0x19]=1;*(void**)(params+0x630)=mapHead;
+ /* 5.1.3 REA: ripParams memory map moved from +0x630 to +0x640. */
+ int(*testParam)(void*)=(void*)GetProcAddress(testHook,"PhotoHubTestPolicyParam");CHECK(testParam);uint8_t params[0x650]={0},*mapHead=nativeMalloc(0x90);memset(mapHead,0,0x90);*(void**)mapHead=*(void**)(mapHead+8)=*(void**)(mapHead+16)=mapHead;mapHead[0x18]=mapHead[0x19]=1;*(void**)(params+0x640)=mapHead;
  makeString(params+0x60,"tests/layer-ink-print.png");CHECK(testParam(params)==1);makeString(params+0x60,"tests/layer-ink-print.dds");CHECK(testParam(params)==1);
  FILE*pngFile=_wfopen(policyPng,L"rb");CHECK(pngFile);fseek(pngFile,0,SEEK_END);size_t pngSize=ftell(pngFile);rewind(pngFile);uint8_t*pngData=malloc(pngSize);CHECK(fread(pngData,1,pngSize,pngFile)==pngSize);fclose(pngFile);uint8_t memImage[80]={0},memoryKey[32];makeString(memImage,"PhotoHub-memory-policy.png");makeString(memImage+32,"png");*(void**)(memImage+64)=pngData;*(size_t*)(memImage+72)=pngSize;makeString(memoryKey,"PhotoHub-memory-policy.png");
  void(*setMemory)(void*,void*,void*)=sym("?setMemoryImage@ripParams@RipData@@QEAAXAEBV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@AEBUImageDataMem@2@@Z");setMemory(params,memoryKey,memImage);makeString(params+0x60,"PhotoHub-memory-policy.png");CHECK(testParam(params)==1);makeString(params+0x60,"PhotoHub-memory-policy.dds");CHECK(testParam(params)==1);makeString(params+0x60,"unrelated-source.png");CHECK(testParam(params)==0);free(pngData);

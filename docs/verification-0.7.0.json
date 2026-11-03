@@ -1,0 +1,49 @@
+{
+  "release": "0.7.0",
+  "channel": "public-beta",
+  "date": "2026-11-03",
+  "hostVersion": "5.1.3",
+  "editorVersion": "1.23.02",
+  "localSystemTested": "Windows 11 x64",
+  "windowsCompatibility": "Windows 10/11 x64 Home, Pro, Enterprise: bundled dependency audit; not all builds VM-tested",
+  "actualDesktopShortcutColdStart": true,
+  "inCanvasNewEditContourPSD": true,
+  "independentLayerMasks": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "savedAndColdReopened": true,
+  "originalMasksRestored": [
+    15,
+    15,
+    15,
+    15
+  ],
+  "ripPaths": [
+    {
+      "name": "getPrintImgRet",
+      "files": 4,
+      "checkedPixels": 258075640,
+      "excludedCMYKNonzero": 0,
+      "selectedChanged": 0,
+      "whiteGlossChanged": 0,
+      "paddingNonzero": 0
+    },
+    {
+      "name": "getPrintImgRetCus",
+      "files": 4,
+      "checkedPixels": 258075640,
+      "excludedCMYKNonzero": 0,
+      "selectedChanged": 0,
+      "whiteGlossChanged": 0,
+      "paddingNonzero": 0
+    }
+  ],
+  "physicalPrintDispatched": false,
+  "allWindowsEditionsExecuted": false,
+  "extraLegacyMemoryTaskParamFullPipelinePassed": false,
+  "packageSHA256": "ade62dac59a12e7abea0954271592945df588513932ec85bb4c3345cb378da65",
+  "privateInputsAndRawLogsPublished": false
+}

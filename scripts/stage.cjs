@@ -1,6 +1,8 @@
-/* AnkerMake PhotoHub 0.6.1 Public Beta; production payload only. */
+/* AnkerMake PhotoHub 0.7.0 Public Beta; production payload only. */
 const fs=require('node:fs'),path=require('node:path');
-const root=path.resolve(__dirname,'..'),stage=path.join(root,'dist/release-payload-0.6.1');
+const root=path.resolve(__dirname,'..'),stage=path.join(root,'dist/release-payload-0.7.0');
+const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));
+if(manifest.version!=='0.7.0'||manifest.releaseChannel!=='public-beta'||manifest.supportedHostVersion!=='5.1.3'||manifest.hostEditorVersion!=='1.23.02'||manifest.nativeInkAbiVerified!==true)throw Error('Release profile/native ABI verification is incomplete; refusing production payload staging');
 fs.mkdirSync(stage,{recursive:true});
 for(const file of fs.readdirSync(path.join(root,'payload'))){if(file.endsWith('.js'))fs.copyFileSync(path.join(root,'payload',file),path.join(stage,file));}
 fs.copyFileSync(path.join(root,'dist/EufyPhotoCraftBridge.exe'),path.join(stage,'bridge.exe'));
@@ -9,4 +11,4 @@ for(const [source,dest]of [['native/bin/PhotoHubInk.dll','native/PhotoHubInk.dll
 fs.cpSync(path.join(root,'licenses'),path.join(stage,'licenses'),{recursive:true});
 fs.copyFileSync(path.join(root,'docs/新手安装与升级教程.md'),path.join(stage,'安装与升级教程.md'));
 fs.copyFileSync(path.join(root,'CHANGELOG.md'),path.join(stage,'更新记录.md'));
-console.log('Staged AnkerMake PhotoHub 0.6.1 Public Beta');
+console.log('Staged AnkerMake PhotoHub 0.7.0 Public Beta');

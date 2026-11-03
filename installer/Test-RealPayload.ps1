@@ -1,8 +1,8 @@
-param([Parameter(Mandatory=$true)][string]$EditorRoot,[string]$Manifest,[string]$PayloadRoot)
+param([Parameter(Mandatory=$true)][string]$EditorRoot,[string]$Manifest,[string]$PayloadRoot,[string]$FixtureParent=(Join-Path $env:TEMP 'AnkerMakePhotoHub-tests'))
 if (!$PayloadRoot) { $PayloadRoot=Join-Path $PSScriptRoot '..\payload' }
 if (!$Manifest) { $Manifest=Join-Path $PSScriptRoot '..\manifest.json' }
 $ErrorActionPreference='Stop'
-$fixture=Join-Path $PSScriptRoot ('real-test-'+[Guid]::NewGuid().ToString('N'))
+$fixture=Join-Path $FixtureParent ('real-test-'+[Guid]::NewGuid().ToString('N'))
 $hostFixture=Join-Path $fixture 'host'
 $editorFixture=Join-Path $fixture 'editor'
 [IO.Directory]::CreateDirectory($hostFixture)|Out-Null
@@ -28,7 +28,7 @@ if($spec.PSObject.Properties.Name -contains 'nativeInkSha256') {
 $shortcut=Join-Path $fixture 'test-launch.lnk'
 $manage=Join-Path $PSScriptRoot 'Manage-Plugin.ps1'
 function Run([string]$Action,[bool]$Dry=$false){
-    $argsList=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$manage,'-Action',$Action,'-HostRoot',$hostFixture,'-EditorRoot',$editorFixture,'-PayloadRoot',$PayloadRoot,'-Manifest',$Manifest,'-ShortcutPath',$shortcut)
+    $argsList=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$manage,'-Action',$Action,'-HostRoot',$hostFixture,'-EditorRoot',$editorFixture,'-PayloadRoot',$PayloadRoot,'-Manifest',$Manifest,'-ShortcutPath',$shortcut,'-SupportRoot',(Join-Path $fixture 'support'))
     if($Dry){$argsList+='-DryRun'}
     & powershell.exe @argsList
     if($LASTEXITCODE -ne 0){throw "Fixture operation failed: $Action"}
@@ -41,9 +41,17 @@ $config=Get-Content -LiteralPath (Join-Path $extension 'config.json') -Raw|Conve
 if($config.token.Length -ne 64 -or !(Get-Content -LiteralPath (Join-Path $extension 'config.js') -Raw).Contains($config.token)){throw 'Token configuration mismatch'}
 $launcher=Get-Content -LiteralPath (Join-Path $extension 'Start-EufyPhotoCraft.ps1') -Raw
 if(!$launcher.Contains('eufymake studio.exe') -or $launcher.Contains('console.exe')){throw 'Wrong host launch target'}
+if(!$launcher.Contains('--no-sw-renderer')){throw 'Missing original 5.1.3 startup compatibility option'}
+if($spec.onlineIntegration -eq 'cdp'){
+    $stable=Join-Path $fixture 'support/Start-PhotoHub.ps1'
+    if(!(Test-Path -LiteralPath $stable) -or !(Get-Content -LiteralPath $stable -Raw).Contains('current_version.txt')){throw 'Stable dynamic launcher missing'}
+    $link=(New-Object -ComObject WScript.Shell).CreateShortcut($shortcut)
+    if(!$link.Arguments.Contains($stable.Replace('/','\'))){throw 'Shortcut still depends on versioned editor cache'}
+}
 if(!(Test-Path -LiteralPath $shortcut)){throw 'Shortcut missing'}
 Run Uninstall $true
 Run Uninstall
 foreach($relative in $originals.Keys){if((Get-FileHash -LiteralPath (Join-Path $editorFixture $relative)).Hash -ne $originals[$relative]){throw "Restoration failed: $relative"}}
 if(Test-Path -LiteralPath $shortcut){throw 'Shortcut not removed'}
+if(Test-Path -LiteralPath (Join-Path $fixture 'support/Start-PhotoHub.ps1')){throw 'Owned stable launcher not removed'}
 Write-Output "PASS actual payload install/uninstall and exact restoration: $fixture"

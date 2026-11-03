@@ -13,7 +13,8 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-source = ROOT / 'dist/release-payload-0.6.1'
+version = json.loads((ROOT / 'manifest.json').read_text(encoding='utf-8'))['version']
+source = ROOT / ('dist/release-payload-' + version)
 fixture = ROOT / 'tests' / ('ink-packaged-' + secrets.token_hex(4))
 shutil.copytree(source, fixture / 'payload')
 token = secrets.token_hex(32)
@@ -45,7 +46,7 @@ try:
             if p.poll() is not None:
                 raise
             time.sleep(.1)
-    assert status == 200 and json.loads(raw)['version'] == '0.6.1'
+    assert status == 200 and json.loads(raw)['version'] == version
     assert req('GET', '/ink/status', authorized=False)[0] == 403
     for mask in (-1, 16, 'C', True):
         status, raw = req('POST', '/ink/mask', {'mask': mask})
@@ -62,8 +63,11 @@ try:
     duplicate = subprocess.Popen(args, env=env, creationflags=subprocess.CREATE_NO_WINDOW)
     assert duplicate.wait(timeout=15) == 0
     assert req('GET', '/health')[0] == 200
-    (ROOT/'tests/ink-packaged-results.json').write_text(json.dumps({'pass': True, 'version':'0.6.1', 'authenticated':True, 'invalidMasksRejected':True, 'invalidPolicyRejected':True, 'pngArtifact':True, 'duplicateLauncher':True}, indent=2))
+    (ROOT/'tests/ink-packaged-results.json').write_text(json.dumps({'pass': True, 'version':version, 'authenticated':True, 'invalidMasksRejected':True, 'invalidPolicyRejected':True, 'pngArtifact':True, 'duplicateLauncher':True}, indent=2))
     print('PASS frozen bridge: native ink script, authentication, invalid masks, PNG save, duplicate launcher')
 finally:
-    p.terminate()
+    # PyInstaller onefile has a bootloader child; terminate this owned test tree.
+    if p.poll() is None:
+        subprocess.run(['taskkill', '/PID', str(p.pid), '/T', '/F'],
+                       capture_output=True, check=False)
     p.wait(timeout=10)

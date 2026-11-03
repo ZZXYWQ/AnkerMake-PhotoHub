@@ -5,10 +5,12 @@
     [string]$PayloadRoot,
     [string]$Manifest,
     [string]$ShortcutPath,
+    [string]$SupportRoot,
     [switch]$DryRun
 )
 if (!$PayloadRoot) { $PayloadRoot=Join-Path $PSScriptRoot '..\payload' }
 if (!$Manifest) { $Manifest=Join-Path $PSScriptRoot '..\manifest.json' }
+# AnkerMake PhotoHub 0.7.0 Public Beta; host/editor/native ABI must all be validated.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $HostRoot = [IO.Path]::GetFullPath($HostRoot).TrimEnd('\','/')
@@ -67,7 +69,7 @@ $nativeRoot = Join-Path $ProcessRoot '.epc-native-backup'
 $nativeStatePath = Join-Path $nativeRoot 'state.json'
 $nativeOriginalPath = Join-Path $nativeRoot 'eufymake studio.exe.original'
 $nativeExe = Join-Path $ProcessRoot 'eufymake studio.exe'
-$nativeOriginalHash = 'AB65F2F978018460B24D9D6397C91BE073E95822E0497094B5AB02A495D10C97'
+$nativeOriginalHash = 'D37244FC3FB7FC6B69AAF4648A4DEC93A99477F02B966EEA1A575352C4A946F6'
 $oldState = $null
 if (Test-Path -LiteralPath $statePath) { $oldState = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json }
 if ($Action -eq 'Status') {
@@ -75,6 +77,33 @@ if ($Action -eq 'Status') {
     exit 0
 }
 CheckStopped
+# The public-beta startup entry lives outside versioned editor caches. Its small
+# ownership record is independent of the cache installation, so an OTA update can
+# fall back to the signed original instead of invoking a deleted old launcher.
+if(!$SupportRoot){$SupportRoot=Join-Path $env:LOCALAPPDATA 'AnkerMakePhotoHub'}
+$SupportRoot=[IO.Path]::GetFullPath($SupportRoot).TrimEnd('\','/')
+$supportLauncher=SafePath $SupportRoot 'Start-PhotoHub.ps1'
+$supportStatePath=SafePath $SupportRoot 'launcher-state.json'
+$supportPrior=$null
+$supportPriorState=$null
+$supportExisting=$null
+$supportPreviousInstallation=$null
+$supportChange=$null
+$supportStateBytes=$null
+if(Test-Path -LiteralPath $supportLauncher){$supportPrior=[IO.File]::ReadAllBytes($supportLauncher)}
+if(Test-Path -LiteralPath $supportStatePath){
+    $supportPriorState=[IO.File]::ReadAllBytes($supportStatePath)
+    $supportExisting=$utf8.GetString($supportPriorState)|ConvertFrom-Json
+}
+if($oldState -and ($oldState.PSObject.Properties.Name -contains 'supportRoot') -and [IO.Path]::GetFullPath([string]$oldState.supportRoot).TrimEnd('\','/') -ne $SupportRoot){throw 'Plugin support path mismatch; no files changed.'}
+$supportOwnedByAnotherEditor=$supportExisting -and [string]$supportExisting.ownerEditorRoot -ne $HostRoot
+if($supportOwnedByAnotherEditor){
+    $previousState=SafePath ([string]$supportExisting.ownerEditorRoot) '.photocraft-plugin-backup/state.json'
+    if(Test-Path -LiteralPath $previousState){$supportPreviousInstallation=Get-Content -LiteralPath $previousState -Raw -Encoding UTF8|ConvertFrom-Json}
+}
+function CheckSupportOwnership {
+    if($supportPrior -and (!$supportExisting -or (ByteHash $supportPrior) -ne $supportExisting.launcherHash)){throw 'PhotoHub stable launcher changed or is not owned; refusing overwrite.'}
+}
 $oldByPath = @{}
 $retiredShortcut=$null
 $retiredShortcutBytes=$null
@@ -92,7 +121,7 @@ if ($oldState) {
         $expectedShortcut=if($ShortcutPath){[IO.Path]::GetFullPath($ShortcutPath)}else{Join-Path ([Environment]::GetFolderPath('Desktop')) 'eufyMake + PhotoCraft.lnk'}
         $newBrandShortcut=Join-Path ([Environment]::GetFolderPath('Desktop')) 'eufyMake + PhotoHub.lnk'
         if([IO.Path]::GetFullPath([string]$oldState.shortcut.path) -ne $expectedShortcut -and ($ShortcutPath -or [IO.Path]::GetFullPath([string]$oldState.shortcut.path) -ne $newBrandShortcut)){throw 'Unexpected shortcut location in installation state; specify its original ShortcutPath explicitly.'}
-        if ((Test-Path -LiteralPath $oldState.shortcut.path) -and (Hash $oldState.shortcut.path) -ne $oldState.shortcut.hash) { throw 'Desktop shortcut changed; refusing overwrite.' }
+        if (!$supportOwnedByAnotherEditor -and (Test-Path -LiteralPath $oldState.shortcut.path) -and (Hash $oldState.shortcut.path) -ne $oldState.shortcut.hash) { throw 'Desktop shortcut changed; refusing overwrite.' }
     }
 }
 function OriginalBytes([string]$Relative) {
@@ -152,13 +181,24 @@ if ($Action -eq 'Uninstall') {
         $nativeChange=PlanNative $false ''
     }
     if (($oldState.PSObject.Properties.Name -contains 'shortcut') -and $oldState.shortcut) { $shortcutPath=[string]$oldState.shortcut.path }
+    # Removing a retired editor cache must not remove the current editor's
+    # shared launcher shortcut or restore its active redirected host shortcuts.
+    if($supportOwnedByAnotherEditor -and ($oldState.PSObject.Properties.Name -contains 'supportRoot')){$shortcutPath=$null}
+    if($supportExisting -and [string]$supportExisting.ownerEditorRoot -eq $HostRoot){
+        CheckSupportOwnership
+        $supportOriginal=$null
+        if($supportExisting.launcherOriginal){$supportOriginal=[Convert]::FromBase64String([string]$supportExisting.launcherOriginal)}
+        $supportChange=[pscustomobject]@{bytes=$supportOriginal;prior=$supportPrior}
+    }
 } else {
     if (!(Test-Path -LiteralPath (Join-Path $PayloadRoot 'adapter.js'))) { throw 'Payload adapter.js is missing.' }
     $manifestData=Get-Content -LiteralPath $Manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($manifestData.PSObject.Properties.Name -contains 'supportedHostSha256') { $nativeOriginalHash=[string]$manifestData.supportedHostSha256 }
     if ($manifestData.PSObject.Properties.Name -contains 'nativeInkSha256') {
+        if(!($manifestData.PSObject.Properties.Name -contains 'nativeInkAbiVerified') -or !$manifestData.nativeInkAbiVerified){throw 'Native ink ABI has not been verified for this test package. No files changed.'}
         $ripPath=Join-Path $ProcessRoot 'ColorEngineAPI.dll'
         if (!(Test-Path -LiteralPath $ripPath) -or (Hash $ripPath) -ne $manifestData.nativeInkSha256) {
-            throw 'Unsupported ColorEngineAPI.dll for physical CMYK control. No files changed. This package requires eufyMake Studio 5.0.4.'
+            throw 'Unsupported ColorEngineAPI.dll for physical CMYK control. No files changed. Use the package matching this AnkerMake version.'
         }
     }
     $pluginVersion='0.1.0'
@@ -244,7 +284,7 @@ if($listeners.Count){
 '@
             $cdpPrelude=$cdpPrelude.Replace('__EPC_HOST__',$escapedHost)
             $launcher=$cdpPrelude+"`r`n"+$launcher+"`r`nif(`$alreadyRunning){exit 0}`r`n"
-            $launcher+="`r`n"+"`$hostProcess=Start-Process -FilePath '$escapedHost' -WorkingDirectory '$($ProcessRoot.Replace("'","''"))' -ArgumentList '--remote-debugging-port=19849','--remote-debugging-address=127.0.0.1' -PassThru"+"`r`n"+@'
+            $launcher+="`r`n"+"`$hostProcess=Start-Process -FilePath '$escapedHost' -WorkingDirectory '$($ProcessRoot.Replace("'","''"))' -ArgumentList '--no-sw-renderer','--remote-debugging-port=19849','--remote-debugging-address=127.0.0.1' -PassThru"+"`r`n"+@'
 for($attempt=0;$attempt -lt 40;$attempt++){
     $listeners=GetDebugListeners
     if($listeners.Count){break}
@@ -256,8 +296,19 @@ if(@($listeners|Where-Object{![Net.IPAddress]::IsLoopback($_.Address)}).Count){
 }
 if(!$listeners.Count){throw 'The eufyMake editor connection did not start. Save and close eufyMake, then retry the extension shortcut.'}
 '@
-        }else{$launcher+="`r`nStart-Process -FilePath '$escapedHost'"}
+        }else{$launcher+="`r`nStart-Process -FilePath '$escapedHost' -ArgumentList '--no-sw-renderer'"}
         Plan "$pluginRelative/Start-EufyPhotoCraft.ps1" ([byte[]](0xEF,0xBB,0xBF)+$utf8.GetBytes($launcher))
+        if($useCdp){
+            CheckSupportOwnership
+            $supportTemplate=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'Start-PhotoHub.ps1'))
+            if([regex]::Matches($supportTemplate,'__EPC_HOST__').Count -ne 1){throw 'Invalid stable launcher template.'}
+            $supportBytes=[byte[]](0xEF,0xBB,0xBF)+$utf8.GetBytes($supportTemplate.Replace('__EPC_HOST__',$escapedHost))
+            $supportOriginal=$supportPrior
+            if($supportExisting){$supportOriginal=$null;if($supportExisting.launcherOriginal){$supportOriginal=[Convert]::FromBase64String([string]$supportExisting.launcherOriginal)}}
+            $supportChange=[pscustomobject]@{bytes=$supportBytes;prior=$supportPrior}
+            $supportRecord=@{version=1;pluginVersion=$pluginVersion;ownerEditorRoot=$HostRoot;hostExecutable=$nativeExe;launcherHash=(ByteHash $supportBytes);launcherOriginal=$(if($null -ne $supportOriginal){[Convert]::ToBase64String($supportOriginal)}else{$null})}
+            $supportStateBytes=$utf8.GetBytes(($supportRecord|ConvertTo-Json -Depth 5))
+        }
         if ($requestedShortcut) { $shortcutPath=[IO.Path]::GetFullPath($requestedShortcut) }
         elseif ($oldState -and ($oldState.PSObject.Properties.Name -contains 'shortcut') -and $oldState.shortcut) { $shortcutPath=[string]$oldState.shortcut.path }
         else { $shortcutPath=Join-Path ([Environment]::GetFolderPath('Desktop')) 'eufyMake + PhotoHub.lnk' }
@@ -266,7 +317,11 @@ if(!$listeners.Count){throw 'The eufyMake editor connection did not start. Save 
             if(Test-Path -LiteralPath $retiredShortcut){$retiredShortcutBytes=[IO.File]::ReadAllBytes($retiredShortcut)}
             $shortcutPath=Join-Path ([IO.Path]::GetDirectoryName($shortcutPath)) 'eufyMake + PhotoHub.lnk'
         }
-        if ((Test-Path -LiteralPath $shortcutPath) -and !($oldState -and ($oldState.PSObject.Properties.Name -contains 'shortcut') -and $oldState.shortcut -and $oldState.shortcut.path -eq $shortcutPath)) { throw 'Desktop plugin shortcut already exists; refusing overwrite.' }
+        if ((Test-Path -LiteralPath $shortcutPath) -and !($oldState -and ($oldState.PSObject.Properties.Name -contains 'shortcut') -and $oldState.shortcut -and $oldState.shortcut.path -eq $shortcutPath)) {
+            $existingLink=(New-Object -ComObject WScript.Shell).CreateShortcut($shortcutPath)
+            $stableArguments='-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+$supportLauncher+'"'
+            if(!$useCdp -or !$supportExisting -or $existingLink.TargetPath -ne (Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe') -or $existingLink.Arguments -ne $stableArguments){throw 'Desktop plugin shortcut already exists; refusing overwrite.'}
+        }
     }
     # Retire only old owned payload files, retaining user-created documents and settings.
     foreach ($old in $oldByPath.Values) {
@@ -276,7 +331,7 @@ if(!$listeners.Count){throw 'The eufyMake editor connection did not start. Save 
 
 $hostLinkChanges=@()
 $hostLinkRecords=@()
-if($oldState -and ($oldState.PSObject.Properties.Name -contains 'hostShortcuts')){
+if($oldState -and ($oldState.PSObject.Properties.Name -contains 'hostShortcuts') -and !($Action -eq 'Uninstall' -and $supportOwnedByAnotherEditor -and ($oldState.PSObject.Properties.Name -contains 'supportRoot'))){
  foreach($link in $oldState.hostShortcuts){
   if(!(Test-Path -LiteralPath $link.path)){continue}
   if((Hash $link.path) -ne $link.installedHash){Write-Warning "保留用户修改过的快捷方式: $($link.path)";continue}
@@ -286,13 +341,25 @@ if($oldState -and ($oldState.PSObject.Properties.Name -contains 'hostShortcuts')
 }
 if($Action -eq 'Install' -and $useCdp){
  $shell=New-Object -ComObject WScript.Shell
+ if($supportPreviousInstallation -and ($supportPreviousInstallation.PSObject.Properties.Name -contains 'hostShortcuts')){
+  foreach($previousLink in $supportPreviousInstallation.hostShortcuts){
+   if(!(Test-Path -LiteralPath $previousLink.path) -or (Hash $previousLink.path) -ne $previousLink.installedHash){continue}
+   $currentLink=$shell.CreateShortcut($previousLink.path)
+   if($currentLink.TargetPath -ne (Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe') -or !$currentLink.Arguments.Contains('"'+$supportLauncher+'"')){continue}
+   $hostLinkChanges+=@{path=$previousLink.path;prior=[IO.File]::ReadAllBytes($previousLink.path);original=[Convert]::FromBase64String([string]$previousLink.original)}
+  }
+ }
  $roots=@([IO.Path]::GetDirectoryName($shortcutPath),[Environment]::GetFolderPath('Desktop'),[Environment]::GetFolderPath('CommonDesktopDirectory'),[Environment]::GetFolderPath('StartMenu'),[Environment]::GetFolderPath('CommonStartMenu'),(Join-Path $env:APPDATA 'Microsoft/Internet Explorer/Quick Launch/User Pinned/TaskBar'))|Select-Object -Unique
+ $recursiveRoots=@([Environment]::GetFolderPath('StartMenu'),[Environment]::GetFolderPath('CommonStartMenu'))
  foreach($folder in $roots){
   if(!$folder -or !(Test-Path -LiteralPath $folder)){continue}
-  foreach($item in Get-ChildItem -LiteralPath $folder -Filter '*.lnk' -File -Recurse -ErrorAction SilentlyContinue){
+  # A desktop may contain very large asset trees. Only Start Menu folders are
+  # recursive; desktop/taskbar shortcuts are direct children of those folders.
+  $linkFiles=if($folder -in $recursiveRoots){@(Get-ChildItem -LiteralPath $folder -Filter '*.lnk' -File -Recurse -ErrorAction SilentlyContinue)}else{@(Get-ChildItem -LiteralPath $folder -Filter '*.lnk' -File -ErrorAction SilentlyContinue)}
+  foreach($item in $linkFiles){
    if($item.FullName -eq $shortcutPath -or @($hostLinkChanges|Where-Object path -eq $item.FullName).Count){continue}
    $link=$shell.CreateShortcut($item.FullName)
-   if($link.TargetPath -ne $nativeExe -or $link.Arguments){continue}
+   if($link.TargetPath -ne $nativeExe -or ($link.Arguments -and $link.Arguments.Trim() -ne '--no-sw-renderer')){continue}
    $bytes=[IO.File]::ReadAllBytes($item.FullName)
    $hostLinkChanges+=@{path=$item.FullName;prior=$bytes;original=$bytes}
   }
@@ -303,6 +370,7 @@ if ($shortcutPath -and (Test-Path -LiteralPath $shortcutPath)) { $shortcutPrior=
 Write-Output "Validated $Action plan: $($changes.Count) editor files; native bootstrap: $($null -ne $nativeChange). User documents preserved."
 foreach ($change in $changes) { Write-Output $change.path }
 foreach($link in $hostLinkChanges){Write-Output ("Host shortcut: "+$link.path)}
+if($supportChange){Write-Output ("Stable PhotoHub launcher: "+$supportLauncher)}
 if ($DryRun) { exit 0 }
 # Stop only this extension's owned bridge after every plan and backup check succeeds.
 $ownedBridge=@(Get-Process -Name 'bridge' -ErrorAction SilentlyContinue | Where-Object {
@@ -332,14 +400,21 @@ try {
     }
     if($nativeChange){WriteBytes $nativeExe $nativeChange.bytes;if((Hash $nativeExe) -ne $nativeChange.installedSha256){throw 'Native write verification failed.'}}
     foreach($change in $changes){if($null -ne $change.bytes -and (Hash $change.target) -ne $change.installedHash){throw "Write verification failed: $($change.path)"}}
+    if($supportChange){
+        if($null -eq $supportChange.bytes){if(Test-Path -LiteralPath $supportLauncher){Remove-Item -LiteralPath $supportLauncher}}
+        else{WriteBytes $supportLauncher $supportChange.bytes;if((Hash $supportLauncher) -ne (ByteHash $supportChange.bytes)){throw 'Stable launcher write verification failed.'}}
+        if($null -eq $supportStateBytes){if(Test-Path -LiteralPath $supportStatePath){Remove-Item -LiteralPath $supportStatePath}}
+        else{WriteBytes $supportStatePath $supportStateBytes}
+    }
     if($Action -eq 'Install'){
         $state=[ordered]@{version=2;pluginVersion=$pluginVersion;installedAt=[DateTime]::UtcNow.ToString('o');files=@($changes|Where-Object{$null -ne $_.bytes}|Select-Object path,originalHash,installedHash)}
         if($useCdp){$state.onlineIntegration='cdp'}
+        if($supportChange){$state.supportRoot=$SupportRoot}
         if($nativeChange){$state.native=@{originalSha256=$nativeOriginalHash;installedSha256=$nativeChange.installedSha256}}
         if($shortcutPath){
             $shell=New-Object -ComObject WScript.Shell;$shortcut=$shell.CreateShortcut($shortcutPath)
             $shortcut.TargetPath=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-            $shortcut.Arguments='-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+(SafePath $HostRoot "$pluginRelative/Start-EufyPhotoCraft.ps1")+'"'
+            $shortcut.Arguments='-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+$(if($useCdp){$supportLauncher}else{SafePath $HostRoot "$pluginRelative/Start-EufyPhotoCraft.ps1"})+'"'
             $shortcut.WorkingDirectory=SafePath $HostRoot $pluginRelative;$shortcut.IconLocation=$hostExecutable[0].FullName;$shortcut.Save()
             $state.shortcut=@{path=$shortcutPath;hash=(Hash $shortcutPath)}
         }
@@ -362,6 +437,10 @@ try {
     }
 }catch{
     $failure=$_
+    if($supportChange){
+        if($null -ne $supportPrior){WriteBytes $supportLauncher $supportPrior}elseif(Test-Path -LiteralPath $supportLauncher){Remove-Item -LiteralPath $supportLauncher}
+        if($null -ne $supportPriorState){WriteBytes $supportStatePath $supportPriorState}elseif(Test-Path -LiteralPath $supportStatePath){Remove-Item -LiteralPath $supportStatePath}
+    }
     foreach($entry in $hostLinkChanges){WriteBytes $entry.path $entry.prior}
     if($retiredShortcutBytes){WriteBytes $retiredShortcut $retiredShortcutBytes}
     foreach($change in $changes){

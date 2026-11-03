@@ -1,6 +1,6 @@
 # 从源码构建 Windows 安装包
 
-版本：**AnkerMake PhotoHub 0.6.1 公开测试版**。
+版本：**AnkerMake PhotoHub 0.7.0 公开测试版**。
 
 构建工具：Windows x64、PowerShell、Node.js 20+、Python 3.12 x64、Zig 0.17.0，以及 Windows 自带 .NET Framework 4.x C# 编译器。构建机器无需安装宿主；原版集成测试另需精确版本宿主。
 
@@ -13,4 +13,4 @@ $env:ZIG_EXE = 'C:/tools/zig/zig.exe'
 
 构建产物不保证字节复现（时间戳、打包器及工具版本可能影响文件），但源码、依赖版本、安装器载荷及各文件 SHA-256 都可核对。公开 Release 随附 `SHA256SUMS.txt`。
 
-源码测试见 [TESTING.md](TESTING.md)。**不要将原版宿主 DLL、ICC 或私有设计复制进 Git；它们不是构建依赖。** 本版硬编码支持范围是宿主 5.0.4 / 编辑器 1.22.03；修改版本字符串不能替代真正的重新适配。
+源码测试见 [TESTING.md](TESTING.md)。**不要将原版宿主 DLL、ICC 或私有设计复制进 Git；它们不是构建依赖。** 本版硬编码支持范围是宿主 5.1.3 / 编辑器 1.23.02；修改版本字符串不能替代真正的重新适配。

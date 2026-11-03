@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Package,[Parameter(Mandatory=$true)][string]$PayloadRoot)
+﻿param([Parameter(Mandatory=$true)][string]$Package,[Parameter(Mandatory=$true)][string]$PayloadRoot)
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.IO.Compression
 $assembly=[Reflection.Assembly]::LoadFile([IO.Path]::GetFullPath($Package))
@@ -10,7 +10,14 @@ $zip=New-Object IO.Compression.ZipArchive($memory,[IO.Compression.ZipArchiveMode
 try{
  $reader=New-Object IO.StreamReader($zip.GetEntry('manifest.json').Open())
  try{$manifest=$reader.ReadToEnd()|ConvertFrom-Json}finally{$reader.Dispose()}
- if($manifest.version -ne '0.6.1'){throw 'Wrong setup version'}
+ if($manifest.version -ne '0.7.0'){throw 'Wrong setup version'}
+ foreach($required in @('Manage-Plugin.ps1','Start-PhotoHub.ps1')){
+  $entry=$zip.GetEntry($required)
+  if(!$entry){throw "Missing installer component: $required"}
+  $stream=$entry.Open();$sha=[Security.Cryptography.SHA256]::Create()
+  try{$actual=[BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','')}finally{$stream.Dispose();$sha.Dispose()}
+  if($actual -ne (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $required)).Hash){throw "Packaged installer component differs: $required"}
+ }
  $base=[IO.Path]::GetFullPath($PayloadRoot).TrimEnd('\','/')+'\';$checked=0
  foreach($file in Get-ChildItem -LiteralPath $PayloadRoot -Recurse -File){
   $relative=$file.FullName.Substring($base.Length).Replace('\','/')

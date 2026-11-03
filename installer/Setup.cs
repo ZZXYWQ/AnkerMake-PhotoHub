@@ -1,4 +1,4 @@
-/* AnkerMake PhotoHub 0.6.1 Public Beta. Host 5.0.4 / editor 1.22.03 only. Older PhotoHub releases must not be used for layer-local CMYK jobs. */
+﻿/* AnkerMake PhotoHub 0.7.0 Public Beta. Host 5.1.3 / editor 1.23.02 only. Older PhotoHub releases must not be used for layer-local CMYK jobs. */
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -6,6 +6,12 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+
+[assembly: AssemblyTitle("AnkerMake PhotoHub 插件 公开测试版")]
+[assembly: AssemblyProduct("AnkerMake PhotoHub Public Beta")]
+[assembly: AssemblyDescription("Test release for AnkerMake Studio 5.1.3 and editor 1.23.02. Bugs and delayed fixes are possible.")]
+[assembly: AssemblyVersion("0.7.0.0")]
+[assembly: AssemblyFileVersion("0.7.0.0")]
 
 class Setup : Form {
     TextBox host = new TextBox { Left=20, Top=52, Width=480 };
@@ -15,18 +21,9 @@ class Setup : Form {
     string lastOutput="";
     string logPath=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"EufyPhotoCraftBridge","setup.log");
     Setup(string root) {
-        bundle=root; Text="AnkerMake PhotoHub 0.6.1 公开测试版 · 安装、升级与卸载"; Width=680; Height=480;
-        string marker=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),@"eufyMake Studio Profile\cache\offline\web_res\current_version.txt");
-        if(File.Exists(marker)) {
-            string cacheRoot=Path.GetDirectoryName(marker);
-            string versionRoot=File.ReadAllText(marker).Trim();
-            if(!Path.IsPathRooted(versionRoot)) versionRoot=Path.Combine(cacheRoot,"versions",versionRoot);
-            versionRoot=Path.GetFullPath(versionRoot);
-            if(!versionRoot.StartsWith(Path.GetFullPath(Path.Combine(cacheRoot,"versions"))+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))
-                throw new Exception("编辑器版本路径异常，已停止操作。");
-            editorRoot=Path.Combine(versionRoot,"web");
-            log.Text="当前编辑器："+editorRoot+Environment.NewLine;
-        }
+        bundle=root; Text="AnkerMake PhotoHub 0.7.0 公开测试版 · 安装、升级与卸载"; Width=680; Height=480;
+        editorRoot=ResolveEditorRoot();
+        if(editorRoot!=null) log.Text="当前编辑器："+editorRoot+Environment.NewLine;
         Controls.Add(new Label { Left=20, Top=20, Width=610, Text="选择 AnkerMake Studio 安装目录（包含 resources 文件夹）" });
         Controls.Add(host); Controls.Add(log);
         Controls.Add(new Label { Left=20, Top=425, Width=620, Height=22, Text="所有版本均为测试版，可能存在较多 Bug；不保证及时更新或修复。" });
@@ -40,6 +37,19 @@ class Setup : Form {
         }
         foreach(var path in new[]{ Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"eufyMake Studio"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"eufyMake Studio"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"AnkerMake Studio") })
             if(Directory.Exists(Path.Combine(path,"resources"))) { host.Text=path; break; }
+    }
+    string ResolveEditorRoot() {
+        string marker=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),@"eufyMake Studio Profile\cache\offline\web_res\current_version.txt");
+        if(File.Exists(marker)) {
+            string cacheRoot=Path.GetDirectoryName(marker);
+            string versionRoot=File.ReadAllText(marker).Trim();
+            if(!Path.IsPathRooted(versionRoot)) versionRoot=Path.Combine(cacheRoot,"versions",versionRoot);
+            versionRoot=Path.GetFullPath(versionRoot);
+            if(!versionRoot.StartsWith(Path.GetFullPath(Path.Combine(cacheRoot,"versions"))+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))
+                throw new Exception("编辑器版本路径异常，已停止操作。");
+            return Path.Combine(versionRoot,"web");
+        }
+        return null;
     }
     string Quote(string text) { return "\""+text.Replace("\"","")+"\""; }
     int Run(string action, bool dry, string selectedHost) {
@@ -77,6 +87,8 @@ class Setup : Form {
             ? "安装目录没有写入权限。请保留日志；如需管理员权限，请由同一 Windows 用户提升权限运行，勿切换到其他用户，以免安装到错误的用户配置。"
             : lastOutput.Contains("Unsupported/changed host file") || lastOutput.Contains("Patch count")
             ? "当前 eufyMake 编辑器版本与此安装包不匹配，已停止安装。需要适配该版本后再安装。"
+            : lastOutput.Contains("Native ink ABI")
+            ? "当前测试包的新版墨路适配尚未通过验证，安装已停止，未修改文件。"
             : lastOutput.Contains("Unsupported native")
             ? "当前 eufyMake 主程序版本尚未适配。安装器未修改文件，请保留诊断日志。"
             : lastOutput.Contains("File changed") || lastOutput.Contains("Native application changed")
@@ -86,6 +98,7 @@ class Setup : Form {
     }
     async void Execute(string action) {
         try {
+            editorRoot=ResolveEditorRoot();
             if(!Directory.Exists(Path.Combine(host.Text,"resources"))) throw new Exception("未找到 eufyMake，请先安装原软件，或通过浏览选择它的安装目录。");
             if(action=="Install" && (editorRoot==null || !File.Exists(Path.Combine(editorRoot,"index.html")))) throw new Exception("尚未找到当前用户的 eufyMake 编辑器缓存。请先正常启动 eufyMake、联网打开一个设计，保存并退出后再安装。请使用与 eufyMake 相同的 Windows 用户运行安装包。");
             Enabled=false; Cursor=Cursors.WaitCursor;

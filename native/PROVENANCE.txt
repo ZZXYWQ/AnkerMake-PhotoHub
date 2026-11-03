@@ -4,4 +4,12 @@ Archive SHA256: 172708123daa0c98d20d3a980b16a50be14af243dc95dee6f79c24193ad010e4
 License is included in the installation as native/MinHook-LICENSE.txt.
 Built with official portable Zig 0.17.0, x86_64-windows-gnu.
 No modification to the original signed executable or ColorEngineAPI.dll on disk.
-Only the exact SHA256-checked eufyMake 5.0.4 RIP ABI is supported.
+Only the exact SHA256-checked AnkerMake Studio 5.1.3 RIP ABI is supported.
+PhotoHub 0.7.0 Public Beta; editor 1.23.02. All releases are test builds, may contain many bugs, and have no promised update/fix schedule.
+Host SHA256: d37244fc3fb7fc6b69aaf4648a4dec93a99477f02b966eea1a575352c4a946f6
+ColorEngineAPI.dll SHA256: fe02383d03fcecb18be2d57aadcb46ccc1f4a56347d91c947a598d442e2d4e5b
+Verified: original 5.1.3 local RIP on the four-layer PSD, four final PRNs, all excluded C/M/Y/K dots zero; selected dots and W/G byte exact to the same-run original output. No physical printing.
+Verified source ABI: ripParams source +0x60; Print2DModeHandler ripParams +0x4f0. The native memory-image map moved from +0x630 to +0x640; production calls the original exported map functions instead of embedding that offset.
+Native test fixture uses +0x640 only for this exact 5.1.3 ABI. PNG, DDS-sibling and memory-image source binding, all 16 CMYK combinations, malformed-data and missing-source rejection were tested.
+REA 6.7.0 / Ghidra 12.1.4 evidence: ev_4bb621dea5a23dbb51e4b834d799fea812f9cc56e5fc530c431ecf4728bc9426 (2D handler); ev_bb83bb78bfa69dac06300ed6970edf569336bdf4d6738e02e1a6519fe1255e77 (memory image); ev_0e9a5501b4f28f7e4fc6d723503b0a196955e1e0d0f6b1507905ca01f2d9cded (native stream).
+These refer to a private passive runtime code snapshot, not the signed on-disk DLL; proprietary artifacts are not distributed.

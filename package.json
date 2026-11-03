@@ -1,8 +1,8 @@
 {
   "name": "ankermake-photohub",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "private": true,
-  "description": "AnkerMake PhotoHub 0.6.1 Public Beta - in-canvas editing and layer-local CMYK",
+  "description": "AnkerMake PhotoHub 0.7.0 Public Beta - AnkerMake Studio 5.1.3 / editor 1.23.02",
   "license": "MIT",
   "engines": {
     "node": ">=20"

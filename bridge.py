@@ -1,4 +1,4 @@
-# AnkerMake PhotoHub 0.6.1 Public Beta. Host 5.0.4 / editor 1.22.03 only; other host versions unsupported.
+# AnkerMake PhotoHub 0.7.0 Public Beta. Host 5.1.3 / editor 1.23.02 only; other host versions unsupported.
 """Local, token-authenticated PhotoCraft bridge. No account/printer APIs."""
 import argparse
 import base64
@@ -111,7 +111,7 @@ class LocalServer(ThreadingHTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = 'EufyPhotoCraftBridge/0.3.0'
+    server_version = 'AnkerMakePhotoHubBridge/0.7.0'
 
     def log_message(self, *_):
         pass
@@ -167,7 +167,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authorized():
             return self.send_json(403, {'error': '本机扩展身份验证失败'})
         if self.path == '/health':
-            return self.send_json(200, {'version': '0.6.1', 'ready': True, 'online': getattr(self.server, 'loader', {}).get('status')})
+            return self.send_json(200, {'version': '0.7.0', 'ready': True, 'online': getattr(self.server, 'loader', {}).get('status')})
         if self.path == '/ink/status':
             try:
                 return self.send_json(200, self.server.ink.status())

@@ -47,6 +47,10 @@
       deleteCommand=await editor.executeCommand('deleteCommand',{objectIds:[sourceObject.id]});
       if(editor.canvas.getObjects().some(item=>item.id===sourceObject.id))throw Error('新轮廓已添加，但原轮廓删除未完成；可撤销新增轮廓后重试');
     }
+    // The 1.23 editor clears selection after its native SVG command. Keep the
+    // committed contour selected so its shape can be edited from the same menu.
+    editor.canvas.setActiveObject(object);
+    editor.canvas.requestRenderAll();
     return{command,deleteCommand,object,createdObject:object,svg:safe,width,height,sourcePreserved:!!sourceObject&&!replaceSource,undoSteps:replaceSource?2:1};
   }
   function getSVG(object){return metadata.get(object)?.svg||null;}

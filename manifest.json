@@ -15,17 +15,19 @@
           "new": ";window.__EPC_HOST=(()=>{const ids=new WeakMap();let seq=0;const manager=()=>{init_ProjectManager();return ProjectManager.getInstance();};return {manager:()=>manager(),editor:()=>{const m=manager();return m.getProjectData()?m.canvasEditor:null;},project:()=>{const p=manager().getProjectData();if(!p)return null;let id=p.project_info?.project_id;if(id===undefined||id===null||id===''){if(!ids.has(p))ids.set(p,++seq);id='local-'+ids.get(p);}return String(id)+':canvas:'+String(p.canvasesIndex??0);},dpi:()=>manager().getCanvasDpi(),loading:()=>{const m=manager();return !!(m.isLoadingProject||m._isLoadFirstInProgress||m.localProjectLoadFailed||m.projectLoadFailed);},original:async obj=>await loadOriginalElement(obj)};})();bootstrap()})();"
         }
       ],
-      "sha256": "6d70c714373fa9b46ff1a4656d1d3266445527a348593134b8d86274fad994fc"
+      "sha256": "06cbee15b52f2494297efe392bfa143ec6e73f08dd4cd686b5099d850e1bc1a3"
     }
   ],
-  "version": "0.6.1",
-  "hostEditorVersion": "1.22.03",
+  "version": "0.7.0",
+  "hostEditorVersion": "1.23.02",
   "entryScript": "main.editor.js",
   "indexPath": "index.html",
   "nativeInjection": false,
   "onlineIntegration": "cdp",
-  "nativeInkSha256": "17a8593d0517e205e8131d924b9e156211ea4f50210f8bfe575cdcecc438c849",
+  "nativeInkSha256": "fe02383d03fcecb18be2d57aadcb46ccc1f4a56347d91c947a598d442e2d4e5b",
   "productName": "AnkerMake PhotoHub 插件",
   "releaseChannel": "public-beta",
-  "supportedHostVersion": "5.0.4"
+  "supportedHostVersion": "5.1.3",
+  "supportedHostSha256": "d37244fc3fb7fc6b69aaf4648a4dec93a99477f02b966eea1a575352c4a946f6",
+  "nativeInkAbiVerified": true
 }

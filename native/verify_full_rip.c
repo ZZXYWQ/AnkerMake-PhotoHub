@@ -7,7 +7,7 @@
 #include "layer_policy.h"
 #include "policy_png.h"
 #define CK(x) do{if(!(x)){fprintf(stderr,"FAIL line %d\n",__LINE__);return 2;}}while(0)
-int main(int argc,char**argv){CK(argc==2);WCHAR png[32768];char file[32768];snprintf(file,sizeof file,"%s/rotated-color.png",argv[1]);MultiByteToWideChar(CP_UTF8,0,file,-1,png,32768);PHPolicy p={0};CK(ph_load_policy_png(png,&p)==1);uint64_t histogram[16]={0};for(uint64_t i=0;i<(uint64_t)p.width*p.height;i++)histogram[p.bits[i]]++;
+int main(int argc,char**argv){CK(argc==2||argc==3);WCHAR png[32768];char file[32768];if(argc==3)snprintf(file,sizeof file,"%s",argv[2]);else snprintf(file,sizeof file,"%s/rotated-color.png",argv[1]);MultiByteToWideChar(CP_UTF8,0,file,-1,png,32768);PHPolicy p={0};CK(ph_load_policy_png(png,&p)==1);uint64_t histogram[16]={0};for(uint64_t i=0;i<(uint64_t)p.width*p.height;i++)histogram[p.bits[i]]++;
 uint64_t excluded[4]={0},bad[4]={0},retained[4]={0},changed[4]={0},nonzero[6]={0},whiteChanged=0,paddingBad=0;uint64_t total=0;
 /* Independent native physical plane mapping, from actual RIP log: KCMYW1W2. */
 const unsigned nativeBits[6]={8,1,2,4,0,0};

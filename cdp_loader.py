@@ -1,4 +1,4 @@
-# AnkerMake PhotoHub 0.6.1 Public Beta. Host 5.0.4 / editor 1.22.03 only; other host versions unsupported.
+# AnkerMake PhotoHub 0.7.0 Public Beta. Host 5.1.3 / editor 1.23.02 only; other host versions unsupported.
 """Inject only the fixed local extension bootstrap into original editor pages.
 
 Uses the host's supported loopback CDP switch. Does not read cookies, storage,

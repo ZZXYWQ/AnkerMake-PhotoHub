@@ -1,4 +1,4 @@
-/* AnkerMake PhotoHub 0.6.1 Public Beta. Host 5.0.4 / editor 1.22.03 only. Older PhotoHub releases must not be used for layer-local CMYK jobs. */
+/* AnkerMake PhotoHub 0.7.0 Public Beta. Host 5.1.3 / editor 1.23.02 only. Older PhotoHub releases must not be used for layer-local CMYK jobs. */
 #define WIN32_LEAN_AND_MEAN
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0A00
@@ -62,7 +62,7 @@ static int single(void *handler,void *param,float x,float y){
  AcquireSRWLockExclusive(&singleGate);if(!beginPolicy(param)){ReleaseSRWLockExclusive(&singleGate);return 0xd05;}
  int result=realSingle(handler,param,x,y);endPolicy();ReleaseSRWLockExclusive(&singleGate);return result;
 }
-/* REA 5.0.4: creative/roll 2D bypasses print_single_layer and passes the
+/* REA 5.1.3 runtime code and local-only RIP: creative/roll 2D bypasses print_single_layer and passes the
    handler's ripParams at +0x4f0 directly to the RIP service. Keep its exact
    source policy alive through all synchronous PRN completion callbacks. */
 static int execute2D(void*handler){
@@ -196,10 +196,10 @@ static DWORD WINAPI initialize(void *unused) {
  HMODULE engine=GetModuleHandleW(L"ColorEngineAPI.dll");
  if(!engine){fault(1);return 0;}
  GetModuleFileNameW(engine,path,32768);
- if(!hashFile(path,"17a8593d0517e205e8131d924b9e156211ea4f50210f8bfe575cdcecc438c849")){fault(2);return 0;}
+ if(!hashFile(path,"fe02383d03fcecb18be2d57aadcb46ccc1f4a56347d91c947a598d442e2d4e5b")){fault(2);return 0;}
  GetModuleFileNameW(0,path,32768);
 #ifndef PH_TEST_HOST
- if(!hashFile(path,"ab65f2f978018460b24d9d6397c91be073e95822e0497094b5ab02a495d10c97")){fault(3);return 0;}
+ if(!hashFile(path,"d37244fc3fb7fc6b69aaf4648a4dec93a99477f02b966eea1a575352c4a946f6")){fault(3);return 0;}
 #endif
  rowVT=GetProcAddress(engine,"??_7PrintRowItem@AnkerMake@@6B@");blockVT=GetProcAddress(engine,"??_7PrintBlockItem@AnkerMake@@6B@");headVT=GetProcAddress(engine,"??_7PrintHeadItem@AnkerMake@@6B@");
  nativeAssign=(void*)GetProcAddress(engine,"?assign@?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@QEAAAEAV12@QEBD_K@Z");

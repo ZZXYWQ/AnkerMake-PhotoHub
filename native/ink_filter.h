@@ -3,7 +3,8 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-/* ColorEngine 5.0.4: row-major, six planar 2-bit channels per row: K C M Y W1 W2.
+/* Verified 5.1.3 layout (also used by the historical 5.0.4 adapter):
+   row-major, six planar 2-bit channels per row: K C M Y W1 W2.
    W1/W2 and all padding of selected planes remain byte-for-byte unchanged. */
 /* UI bits are C=1 M=2 Y=4 K=8; native final physical planes are KCMY. */
 static const uint8_t ph_plane_mask[4]={8,1,2,4};

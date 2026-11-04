@@ -1,12 +1,12 @@
 # AnkerMake PhotoHub 插件 0.7.0 StartupFix1 公开测试版
 
-此为未单独发布的本地候选记录，启动路径问题随后由 StartupFix2 修复。请下载 StartupFix2。
+此为**未单独发布的本地候选记录**，没有对应公开 Release 或可下载的安装包。启动路径问题随后由 StartupFix2 修复，请下载 [StartupFix2 公开测试版](https://github.com/ZZXYWQ/AnkerMake-PhotoHub/releases/tag/v0.7.0-startupfix2-public-beta)。以下仅保留候选版本的历史验证范围。
 
-**所有版本均为测试版，可能存在较多 Bug；不保证及时更新或修复，没有固定更新计划。** 本次继续以 Pre-release 发布。
+**所有公开版本均为测试版，可能存在较多 Bug；不保证及时更新或修复，没有固定更新计划。**
 
-## 下载与升级
+## 历史候选包信息（不提供下载）
 
-下载 `PhotoHub-AnkerMake-Plugin-0.7.0-StartupFix1-Win10-Win11-x64.exe` 即可。`SHA256SUMS.txt` 提供可选完整性校验。功能版本仍为 0.7.0，安装器文件版本为 0.7.0.1，窗口标题增加 StartupFix1 标识。
+候选包名为 `PhotoHub-AnkerMake-Plugin-0.7.0-StartupFix1-Win10-Win11-x64.exe`。功能版本为 0.7.0，安装器文件版本为 0.7.0.1；此候选包未公开发布，请勿按该名称寻找下载。当前安装与升级请使用上方 StartupFix2 链接及新手教程。
 
 等已有打印结束，保存设计并完全退出 AnkerMake Studio，运行此 EXE 选择“安装 / 升级”，可直接覆盖已有 0.7.0。随后从原版或 PhotoHub 快捷方式启动。卸载也使用同一 EXE，保留设计。
 

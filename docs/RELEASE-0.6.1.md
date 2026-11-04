@@ -1,5 +1,7 @@
 # AnkerMake PhotoHub 插件 0.6.1 公开测试版
 
+> **历史版本，仅适配旧版 Studio 5.0.4 / 编辑器 1.22.03，不能安装到 5.1.3。** 使用 Studio 5.1.3 / 编辑器 1.23.02 请下载 [0.7.0 StartupFix2 公开测试版](https://github.com/ZZXYWQ/AnkerMake-PhotoHub/releases/tag/v0.7.0-startupfix2-public-beta)。以下为旧版发布记录，不代表当前推荐版本。
+
 **本项目所有公开版本均为测试版，可能存在较多 Bug。不保证及时更新或修复，没有固定更新计划。请先备份设计，自行评估。**
 
 此版本作为 Public Beta / Pre-release 发布，不是稳定版。仅适配 **AnkerMake Studio 5.0.4 + 编辑器 1.22.03 + Windows 10/11 x64**。其他新旧宿主不能使用；不要通过修改版本号或跳过哈希校验强行安装。

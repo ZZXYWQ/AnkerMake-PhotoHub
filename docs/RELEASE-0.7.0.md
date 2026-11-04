@@ -1,5 +1,7 @@
 # AnkerMake PhotoHub 插件 0.7.0 公开测试版
 
+> 本文记录原始 0.7.0 发布。当前推荐 [0.7.0 StartupFix2 启动修复公开测试版](https://github.com/ZZXYWQ/AnkerMake-PhotoHub/releases/tag/v0.7.0-startupfix2-public-beta)，功能版本和宿主兼容范围不变。
+
 **所有版本均为测试版，可能存在较多 Bug；不保证及时更新或修复，没有固定更新计划。** 本次以 Pre-release 发布。
 
 适配 **AnkerMake Studio 5.1.3 + 编辑器 1.23.02**。0.6.x 安装包不能用于这个新版环境。Windows 10/11 **x64** 家庭、专业、企业版共用同一个安装包，依赖已内置，无需额外安装 Python、Node.js 或独立 PhotoCraft；尚未逐一实测所有系统版本。

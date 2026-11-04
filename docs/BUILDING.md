@@ -1,6 +1,6 @@
 # 从源码构建 Windows 安装包
 
-版本：**AnkerMake PhotoHub 0.7.0 公开测试版**。
+版本：**AnkerMake PhotoHub 0.7.0 StartupFix2 公开测试版**。功能版本为 0.7.0，安装器文件版本为 0.7.0.2，默认输出文件名带 `StartupFix2`。
 
 构建工具：Windows x64、PowerShell、Node.js 20+、Python 3.12 x64、Zig 0.17.0，以及 Windows 自带 .NET Framework 4.x C# 编译器。构建机器无需安装宿主；原版集成测试另需精确版本宿主。
 

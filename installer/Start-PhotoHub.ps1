@@ -3,6 +3,12 @@
 $ErrorActionPreference='Stop'
 $nativeHost='__EPC_HOST__'
 $profileRoot=Join-Path $env:APPDATA 'eufyMake Studio Profile/cache/offline/web_res'
+function WriteLauncherEvent([string]$Stage,[Diagnostics.Stopwatch]$Clock) {
+    try {
+        $line=[DateTime]::UtcNow.ToString('o')+' pid='+$PID+' '+$Stage+' elapsedMs='+$Clock.ElapsedMilliseconds+"`r`n"
+        [IO.File]::AppendAllText((Join-Path $PSScriptRoot 'launcher.log'),$line,(New-Object Text.UTF8Encoding($false)))
+    } catch { }
+}
 function WriteLauncherDiagnostic([string]$Kind,[Exception]$Failure) {
     try {
         $message=$Failure.Message.Replace("`r",' ').Replace("`n",' ')
@@ -34,10 +40,12 @@ function ReadLauncherHash([string]$Path) {
     throw 'PhotoHub launcher hash could not be read.'
 }
 function StartOriginal([string]$Reason) {
-    Start-Process -FilePath $nativeHost -WorkingDirectory ([IO.Path]::GetDirectoryName($nativeHost)) -ArgumentList '--no-sw-renderer'
+    Start-Process -FilePath $nativeHost -WorkingDirectory ([IO.Path]::GetDirectoryName($nativeHost)) -WindowStyle Normal -ArgumentList '--no-sw-renderer'
     Add-Type -AssemblyName System.Windows.Forms
     [Windows.Forms.MessageBox]::Show($Reason+"`r`n已启动原版 AnkerMake；PhotoHub 没有加载，作品不会被修改。",'AnkerMake PhotoHub 公开测试版') | Out-Null
 }
+$launchClock=[Diagnostics.Stopwatch]::StartNew()
+WriteLauncherEvent 'start' $launchClock
 try {
     $marker=Join-Path $profileRoot 'current_version.txt'
     if(!(Test-Path -LiteralPath $marker)){throw '未找到当前编辑器版本，请先联网打开一次原版编辑器。'}
@@ -56,7 +64,9 @@ try {
     if($entry.Count -ne 1 -or [string]$entry[0].installedHash -notmatch '^[0-9a-fA-F]{64}$'){throw 'PhotoHub 启动文件校验记录异常，请重新安装插件。'}
     $actualHash=ReadLauncherHash $launcher
     if(![string]::Equals($actualHash,[string]$entry[0].installedHash,[StringComparison]::OrdinalIgnoreCase)){throw 'PhotoHub 启动文件校验失败，请重新安装插件。'}
+    WriteLauncherEvent 'validated' $launchClock
     & $launcher
+    WriteLauncherEvent 'child-returned' $launchClock
 } catch {
     WriteLauncherDiagnostic 'startup-fallback' $_.Exception
     StartOriginal $_.Exception.Message

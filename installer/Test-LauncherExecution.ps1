@@ -12,7 +12,12 @@ if($parseErrors.Count){throw ($parseErrors|Out-String)}
 $edits=@($childAst.FindAll({param($n) $n -is [Management.Automation.Language.TrapStatementAst]},$true)|ForEach-Object { @{start=$_.Extent.StartOffset;length=$_.Extent.EndOffset-$_.Extent.StartOffset;new='trap { throw $_ }'} })
 $portFunction=$childAst.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'GetDebugListeners'},$true)
 if(!$portFunction){throw 'Expected generated child launcher port function'}
-$edits+=@{start=$portFunction.Extent.StartOffset;length=$portFunction.Extent.EndOffset-$portFunction.Extent.StartOffset;new='function GetDebugListeners { if($global:mockHostStarted){(New-Object Net.IPEndPoint([Net.IPAddress]::Loopback,19849))} }'}
+$edits+=@{start=$portFunction.Extent.StartOffset;length=$portFunction.Extent.EndOffset-$portFunction.Extent.StartOffset;new='function GetDebugListeners { if($global:mockHostStarted -or $mode -eq "existing"){(New-Object Net.IPEndPoint([Net.IPAddress]::Loopback,19849))} }'}
+$showFunction=$childAst.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'ShowHostWindow'},$true)
+if(!$showFunction){throw 'Expected generated launcher window restoration helper'}
+$edits+=@{start=$showFunction.Extent.StartOffset;length=$showFunction.Extent.EndOffset-$showFunction.Extent.StartOffset;new='function ShowHostWindow($Process) { $global:mockRestores++ }'}
+$hostPath=[regex]::Match($childSource,"Path -eq '([^']+)'").Groups[1].Value
+if(!$hostPath){throw 'Host path missing from child launcher'}
 # Windows PowerShell 5 does not consistently expose Hashtable keys as sort
 # properties. Sort explicit numeric offsets before replacing the source ranges.
 foreach($edit in $edits|Sort-Object {[int]$_['start']} -Descending){$childSource=$childSource.Remove($edit.start,$edit.length).Insert($edit.start,$edit.new)}
@@ -20,7 +25,7 @@ $stableSource=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'Start-PhotoHub.ps
 $stableAst=[Management.Automation.Language.Parser]::ParseInput($stableSource,[ref]$tokens,[ref]$parseErrors)
 $fallback=$stableAst.Find({param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'StartOriginal'},$true)
 $stableSource=$stableSource.Remove($fallback.Extent.StartOffset,$fallback.Extent.EndOffset-$fallback.Extent.StartOffset).Insert($fallback.Extent.StartOffset,'function StartOriginal([string]$Reason) { $global:mockFallback=$true; throw "MOCK_FALLBACK" }')
-foreach($mode in @('good','wrong-hash','io-retry','child-error')){
+foreach($mode in @('good','existing','wrong-hash','io-retry','child-error')){
     $case=Join-Path $fixture $mode
     $profile=Join-Path $case 'Roaming/eufyMake Studio Profile/cache/offline/web_res'
     $version=Join-Path $profile 'versions/1.23.02'
@@ -44,12 +49,12 @@ foreach($mode in @('good','wrong-hash','io-retry','child-error')){
 $ErrorActionPreference='Stop'
 $mode='__MODE__'
 $env:APPDATA=Join-Path $PSScriptRoot 'Roaming'
-$global:mockHostStarted=$false;$global:mockFallback=$false
+$global:mockHostStarted=$false;$global:mockFallback=$false;$global:mockRestores=0
 $global:mockLaunches=New-Object Collections.Generic.List[object]
-function Get-Process { param($Name,$ErrorAction) @() }
+function Get-Process { param($Name,$ErrorAction) if($mode -eq 'existing'){[pscustomobject]@{Path='__HOST_PATH__'}}else{@()} }
 function Start-Process { param($FilePath,$WorkingDirectory,$WindowStyle,$ArgumentList,[switch]$PassThru)
- $global:mockLaunches.Add([pscustomobject]@{FilePath=$FilePath;WorkingDirectory=$WorkingDirectory;Arguments=$ArgumentList})
- if($FilePath -like '*eufymake studio.exe'){$global:mockHostStarted=$true;[pscustomobject]@{Id=1234}}
+ $global:mockLaunches.Add([pscustomobject]@{FilePath=$FilePath;WorkingDirectory=$WorkingDirectory;Arguments=$ArgumentList;WindowStyle=$WindowStyle})
+ if($FilePath -like '*eufymake studio.exe'){$global:mockHostStarted=$true;$p=[pscustomobject]@{Id=1234;HasExited=$false;MainWindowHandle=[IntPtr]1};$p|Add-Member ScriptMethod Refresh {};return $p}
 }
 function Invoke-RestMethod { param($Uri,$Headers,$TimeoutSec) @{ok=$true} }
 $plugin=Join-Path $PSScriptRoot 'Roaming/eufyMake Studio Profile/cache/offline/web_res/versions/1.23.02/web/eufymake-photocraft'
@@ -67,15 +72,18 @@ if($mode -in @('wrong-hash','child-error')){
  $log=[IO.File]::ReadAllText((Join-Path $PSScriptRoot 'Support/launcher.log'))
  if(!$log.Contains('startup-fallback')){throw 'Fallback diagnostic missing'}
  if($mode -eq 'child-error' -and ($log.Contains(('a'*64)) -or !$log.Contains('[redacted]'))){throw 'Diagnostic secret redaction failed'}
+}elseif($mode -eq 'existing'){
+ if($failed -or $global:mockFallback -or $global:mockLaunches.Count -ne 1 -or $global:mockRestores -ne 1){throw 'Existing window was not restored without launching a second host'}
 }else{
  if($failed -or $global:mockFallback -or $global:mockLaunches.Count -ne 2){throw 'Caller -> child did not reach mocked bridge and host'}
  if($global:mockLaunches[0].FilePath -ne (Join-Path $plugin 'bridge.exe') -or $global:mockLaunches[0].WorkingDirectory -ne $plugin){throw 'Child PSScriptRoot leaked from caller scope'}
  if('--remote-debugging-port=19849' -notin $global:mockLaunches[1].Arguments -or '--no-sw-renderer' -notin $global:mockLaunches[1].Arguments){throw 'Host compatibility/debug flags missing'}
+ if($global:mockLaunches[1].WindowStyle -ne 'Normal' -or $global:mockRestores -ne 1){throw 'Cold host window was not explicitly shown'}
  if($mode -eq 'io-retry' -and !([IO.File]::ReadAllText((Join-Path $PSScriptRoot 'Support/launcher.log'))).Contains('hash-read-retry')){throw 'Transient IO retry was not exercised'}
 }
 Write-Output ('PASS launcher execution '+$mode)
 '@
-    [IO.File]::WriteAllText((Join-Path $case 'driver.ps1'),$driver.Replace('__MODE__',$mode),$utf8)
+    [IO.File]::WriteAllText((Join-Path $case 'driver.ps1'),$driver.Replace('__MODE__',$mode).Replace('__HOST_PATH__',$hostPath.Replace("'","''")),$utf8)
     & (Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe') -NoProfile -ExecutionPolicy Bypass -File (Join-Path $case 'driver.ps1')
     if($LASTEXITCODE){throw "Windows PowerShell launcher regression failed: $mode"}
 }

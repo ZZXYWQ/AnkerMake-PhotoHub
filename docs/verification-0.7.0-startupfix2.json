@@ -1,0 +1,21 @@
+{
+  "release": "0.7.0 StartupFix2 Public Beta",
+  "date": "2026-11-04",
+  "host": "5.1.3",
+  "editor": "1.23.02",
+  "installerFileVersion": "0.7.0.2",
+  "installer": "PhotoHub-AnkerMake-Plugin-0.7.0-StartupFix2-Win10-Win11-x64.exe",
+  "sha256": "c4b68d71e76760e520a12f4bb3cabd5c6221d096ef0b6b563301d004b0d5fb8b",
+  "packagePayloadFilesVerified": 23,
+  "windowsPowerShellMockTests": ["good", "existing", "wrong-hash", "io-retry", "child-error"],
+  "installerLifecycleTests": ["dry-run", "install", "same-version repair", "missing-file repair", "ownership rejection", "uninstall restoration", "editor-cache migration"],
+  "localShortcutChecks": {
+    "ownedShortcutTargetsRepaired": 6,
+    "actualExplorerDoubleClickColdStartSeconds": 8.01,
+    "backgroundWindowRestoreObserved": true
+  },
+  "publicSourceAndPayloadBrandingChecked": true,
+  "fullRipTestsRepeatedForThisFix": false,
+  "physicalPrinting": false,
+  "limitations": ["Single-machine timing only", "Occasional lingering process after exit remains unlocated", "All releases are test versions without a guaranteed repair schedule"]
+}

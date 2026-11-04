@@ -35,6 +35,33 @@ function SafePath([string]$Root,[string]$Relative) {
     return $result
 }
 function Hash([string]$Path) { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash }
+function StoredFilePath([string]$Path) {
+    # Packaged installers may see a virtual AppData path. Shell shortcuts run
+    # outside that identity, so persist the physical path of the written file.
+    if(-not ('PhotoHub.InstalledPath' -as [type])){
+        Add-Type -TypeDefinition @'
+using System;
+using System.Text;
+using System.Runtime.InteropServices;
+namespace PhotoHub {
+ public static class InstalledPath {
+  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]
+  public static extern uint GetFinalPathNameByHandle(IntPtr handle,StringBuilder path,uint size,uint flags);
+ }
+}
+'@
+    }
+    $stream=[IO.File]::Open($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
+    try {
+        $buffer=New-Object Text.StringBuilder 32768
+        $length=[PhotoHub.InstalledPath]::GetFinalPathNameByHandle($stream.SafeFileHandle.DangerousGetHandle(),$buffer,32768,0)
+        if(!$length -or $length -ge 32768){throw 'Cannot resolve the installed launcher storage path.'}
+        $physical=$buffer.ToString()
+        if($physical.StartsWith('\\?\UNC\')){return '\\'+$physical.Substring(8)}
+        if($physical.StartsWith('\\?\')){return $physical.Substring(4)}
+        return $physical
+    } finally {$stream.Dispose()}
+}
 function ByteHash([byte[]]$Bytes) {
     $sha = [Security.Cryptography.SHA256]::Create()
     try { return [BitConverter]::ToString($sha.ComputeHash($Bytes)).Replace('-','') } finally { $sha.Dispose() }
@@ -80,7 +107,10 @@ CheckStopped
 # The public-beta startup entry lives outside versioned editor caches. Its small
 # ownership record is independent of the cache installation, so an OTA update can
 # fall back to the signed original instead of invoking a deleted old launcher.
-if(!$SupportRoot){$SupportRoot=Join-Path $env:LOCALAPPDATA 'AnkerMakePhotoHub'}
+if(!$SupportRoot){
+    if($oldState -and ($oldState.PSObject.Properties.Name -contains 'supportRoot')){$SupportRoot=[string]$oldState.supportRoot}
+    else{$SupportRoot=Join-Path $env:USERPROFILE 'AnkerMakePhotoHub'}
+}
 $SupportRoot=[IO.Path]::GetFullPath($SupportRoot).TrimEnd('\','/')
 $supportLauncher=SafePath $SupportRoot 'Start-PhotoHub.ps1'
 $supportStatePath=SafePath $SupportRoot 'launcher-state.json'
@@ -273,6 +303,30 @@ trap { Add-Type -AssemblyName System.Windows.Forms; [Windows.Forms.MessageBox]::
 function GetDebugListeners {
     return @([Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() | Where-Object {$_.Port -eq 19849})
 }
+function ShowHostWindow($Process) {
+    # Clicking an existing shortcut must restore its window instead of silently
+    # exiting behind other applications. This helper is part of the launcher.
+    if(-not ('PhotoHub.LaunchWindow' -as [type])){
+        Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+namespace PhotoHub {
+ public static class LaunchWindow {
+  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr h,int command);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+ }
+}
+"@
+    }
+    $Process.Refresh()
+    $handle=$Process.MainWindowHandle
+    if($handle -eq [IntPtr]::Zero){return}
+    $command=5
+    if([PhotoHub.LaunchWindow]::IsIconic($handle)){$command=9}
+    [PhotoHub.LaunchWindow]::ShowWindowAsync($handle,$command)|Out-Null
+    [PhotoHub.LaunchWindow]::SetForegroundWindow($handle)|Out-Null
+}
 $listeners=GetDebugListeners
 $alreadyRunning=$false
 $ownedHost=@(Get-Process -Name 'eufymake studio' -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq '__EPC_HOST__' })
@@ -280,11 +334,12 @@ if($listeners.Count){
  if(@($listeners|Where-Object{![Net.IPAddress]::IsLoopback($_.Address)}).Count -or !$ownedHost.Count){throw 'PhotoHub 本地连接端口被其他程序占用。'}
  try{$targets=Invoke-RestMethod -Uri 'http://127.0.0.1:19849/json/list' -TimeoutSec 2;if($null -eq $targets){throw 'No targets'}}catch{throw 'PhotoHub 本地连接尚未就绪，请稍后重试。'}
  $alreadyRunning=$true
+ foreach($existing in $ownedHost){ShowHostWindow $existing}
 }elseif($ownedHost.Count){throw 'eufyMake 已通过不带 PhotoHub 的入口打开。请先保存设计并退出，再点击此图标；不会自动关闭或丢弃你的设计。'}
 '@
             $cdpPrelude=$cdpPrelude.Replace('__EPC_HOST__',$escapedHost)
             $launcher=$cdpPrelude+"`r`n"+$launcher+"`r`nif(`$alreadyRunning){exit 0}`r`n"
-            $launcher+="`r`n"+"`$hostProcess=Start-Process -FilePath '$escapedHost' -WorkingDirectory '$($ProcessRoot.Replace("'","''"))' -ArgumentList '--no-sw-renderer','--remote-debugging-port=19849','--remote-debugging-address=127.0.0.1' -PassThru"+"`r`n"+@'
+            $launcher+="`r`n"+"`$hostProcess=Start-Process -FilePath '$escapedHost' -WorkingDirectory '$($ProcessRoot.Replace("'","''"))' -WindowStyle Normal -ArgumentList '--no-sw-renderer','--remote-debugging-port=19849','--remote-debugging-address=127.0.0.1' -PassThru"+"`r`n"+@'
 for($attempt=0;$attempt -lt 40;$attempt++){
     $listeners=GetDebugListeners
     if($listeners.Count){break}
@@ -295,6 +350,12 @@ if(@($listeners|Where-Object{![Net.IPAddress]::IsLoopback($_.Address)}).Count){
     throw 'The host debugging endpoint was not restricted to loopback; extension launch stopped.'
 }
 if(!$listeners.Count){throw 'The eufyMake editor connection did not start. Save and close eufyMake, then retry the extension shortcut.'}
+for($windowAttempt=0;$windowAttempt -lt 40;$windowAttempt++){
+    $hostProcess.Refresh()
+    if($hostProcess.HasExited){throw 'AnkerMake exited during startup.'}
+    if($hostProcess.MainWindowHandle -ne [IntPtr]::Zero){ShowHostWindow $hostProcess;break}
+    Start-Sleep -Milliseconds 250
+}
 '@
         }else{$launcher+="`r`nStart-Process -FilePath '$escapedHost' -ArgumentList '--no-sw-renderer'"}
         Plan "$pluginRelative/Start-EufyPhotoCraft.ps1" ([byte[]](0xEF,0xBB,0xBF)+$utf8.GetBytes($launcher))
@@ -409,13 +470,14 @@ try {
     if($Action -eq 'Install'){
         $state=[ordered]@{version=2;pluginVersion=$pluginVersion;installedAt=[DateTime]::UtcNow.ToString('o');files=@($changes|Where-Object{$null -ne $_.bytes}|Select-Object path,originalHash,installedHash)}
         if($useCdp){$state.onlineIntegration='cdp'}
-        if($supportChange){$state.supportRoot=$SupportRoot}
+        if($supportChange){$state.supportRoot=[IO.Path]::GetDirectoryName((StoredFilePath $supportLauncher))}
         if($nativeChange){$state.native=@{originalSha256=$nativeOriginalHash;installedSha256=$nativeChange.installedSha256}}
         if($shortcutPath){
             $shell=New-Object -ComObject WScript.Shell;$shortcut=$shell.CreateShortcut($shortcutPath)
             $shortcut.TargetPath=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-            $shortcut.Arguments='-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+$(if($useCdp){$supportLauncher}else{SafePath $HostRoot "$pluginRelative/Start-EufyPhotoCraft.ps1"})+'"'
-            $shortcut.WorkingDirectory=SafePath $HostRoot $pluginRelative;$shortcut.IconLocation=$hostExecutable[0].FullName;$shortcut.Save()
+            $storedLauncher=StoredFilePath $(if($useCdp){$supportLauncher}else{SafePath $HostRoot "$pluginRelative/Start-EufyPhotoCraft.ps1"})
+            $shortcut.Arguments='-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+$storedLauncher+'"'
+            $shortcut.WorkingDirectory=[IO.Path]::GetDirectoryName($storedLauncher);$shortcut.IconLocation=$hostExecutable[0].FullName;$shortcut.Save()
             $state.shortcut=@{path=$shortcutPath;hash=(Hash $shortcutPath)}
         }
         foreach($entry in $hostLinkChanges){

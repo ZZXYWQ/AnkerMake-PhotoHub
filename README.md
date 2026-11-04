@@ -1,6 +1,8 @@
 # AnkerMake PhotoHub 插件
 
-**0.7.0 公开测试版（Public Beta）** · Windows 10 / 11 x64
+**0.7.0 StartupFix2 公开测试版（Public Beta）** · Windows 10 / 11 x64
+
+当前推荐下载 [StartupFix2 启动修复版](https://github.com/ZZXYWQ/AnkerMake-PhotoHub/releases/tag/v0.7.0-startupfix2-public-beta)：修复启动脚本路径不可见导致桌面/任务栏图标打不开，以及重复点击未恢复已有窗口的问题。功能版本仍为 0.7.0，安装器文件版本为 0.7.0.2；不扩大宿主兼容范围。详见 [本次验证记录](docs/verification-0.7.0-startupfix2.json)。
 
 > **本项目所有公开版本均为测试版，可能存在较多 Bug。更新和问题修复不保证及时，也没有固定更新计划。请自行评估、备份设计，不要将测试通过理解为稳定版保证。**
 
@@ -29,7 +31,7 @@ Windows 家庭版、专业版和企业版共用这一份 x64 安装包，所需 
 
 从本仓库 **[Releases](https://github.com/ZZXYWQ/AnkerMake-PhotoHub/releases)** 下载：
 
-`PhotoHub-AnkerMake-Plugin-0.7.0-Public-Beta-Win10-Win11-x64.exe`
+`PhotoHub-AnkerMake-Plugin-0.7.0-StartupFix2-Win10-Win11-x64.exe`
 
 1. 先等已有打印任务结束，保存设计并完全退出 AnkerMake Studio。
 2. 运行上述单个 EXE，选择“安装 / 升级”。不需要另外安装 Python、Node.js 或独立 PhotoCraft。

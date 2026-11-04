@@ -1,4 +1,4 @@
-﻿/* AnkerMake PhotoHub 0.7.0 Public Beta. Host 5.1.3 / editor 1.23.02 only. Older PhotoHub releases must not be used for layer-local CMYK jobs. */
+/* AnkerMake PhotoHub 0.7.0 Public Beta. Host 5.1.3 / editor 1.23.02 only. Older PhotoHub releases must not be used for layer-local CMYK jobs. */
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -11,7 +11,7 @@ using System.Windows.Forms;
 [assembly: AssemblyProduct("AnkerMake PhotoHub Public Beta")]
 [assembly: AssemblyDescription("Test release for AnkerMake Studio 5.1.3 and editor 1.23.02. Bugs and delayed fixes are possible.")]
 [assembly: AssemblyVersion("0.7.0.0")]
-[assembly: AssemblyFileVersion("0.7.0.0")]
+[assembly: AssemblyFileVersion("0.7.0.2")]
 
 class Setup : Form {
     TextBox host = new TextBox { Left=20, Top=52, Width=480 };
@@ -21,7 +21,7 @@ class Setup : Form {
     string lastOutput="";
     string logPath=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"EufyPhotoCraftBridge","setup.log");
     Setup(string root) {
-        bundle=root; Text="AnkerMake PhotoHub 0.7.0 公开测试版 · 安装、升级与卸载"; Width=680; Height=480;
+        bundle=root; Text="AnkerMake PhotoHub 0.7.0 StartupFix2 公开测试版 · 安装、升级与卸载"; Width=680; Height=480;
         editorRoot=ResolveEditorRoot();
         if(editorRoot!=null) log.Text="当前编辑器："+editorRoot+Environment.NewLine;
         Controls.Add(new Label { Left=20, Top=20, Width=610, Text="选择 AnkerMake Studio 安装目录（包含 resources 文件夹）" });

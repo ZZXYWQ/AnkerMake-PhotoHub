@@ -1,8 +1,8 @@
 {
   "name": "ankermake-photohub",
-  "version": "0.7.0",
+  "version": "0.8.7",
   "private": true,
-  "description": "AnkerMake PhotoHub 0.7.0 Public Beta - AnkerMake Studio 5.1.3 / editor 1.23.02",
+  "description": "AnkerMake PhotoHub 0.8.7 Public Beta - AnkerMake Studio 5.1.3 / editor 1.25.04",
   "license": "MIT",
   "engines": {
     "node": ">=20"

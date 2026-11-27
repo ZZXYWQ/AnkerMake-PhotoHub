@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $fixture = Join-Path $PSScriptRoot ('test-' + [Guid]::NewGuid().ToString('N'))
 $dist = Join-Path $fixture 'host/resources/web/dist'
 $payload = Join-Path $fixture 'payload'

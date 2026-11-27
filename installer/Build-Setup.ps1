@@ -1,21 +1,19 @@
-param([string]$PayloadRoot,[string]$Manifest,[string]$Output)
-if (!$PayloadRoot) { $PayloadRoot=Join-Path $PSScriptRoot '..\payload' }
-if (!$Manifest) { $Manifest=Join-Path $PSScriptRoot '..\manifest.json' }
-if (!$Output) { $Output=Join-Path $PSScriptRoot '..\dist\PhotoHub-AnkerMake-Plugin-0.7.0-StartupFix2-Win10-Win11-x64.exe' }
+﻿param([string]$PayloadRoot,[string]$Manifest,[string]$Output,[string]$BuildRoot,[string]$Compiler=$env:INNO_ISCC)
 $ErrorActionPreference='Stop'
-$build=Join-Path $PSScriptRoot ('build-'+[Guid]::NewGuid().ToString('N'))
-[IO.Directory]::CreateDirectory($build)|Out-Null
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Manage-Plugin.ps1') -Destination $build
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Start-PhotoHub.ps1') -Destination $build
-Copy-Item -LiteralPath $Manifest -Destination (Join-Path $build 'manifest.json')
-Copy-Item -LiteralPath $PayloadRoot -Destination (Join-Path $build 'payload') -Recurse
-$zip=$build+'.zip'
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-[IO.Compression.ZipFile]::CreateFromDirectory($build,$zip)
-$output=[IO.Path]::GetFullPath($Output)
-[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($output))|Out-Null
-$csc=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-& $csc /nologo /target:winexe /platform:x64 "/out:$output" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.IO.Compression.FileSystem.dll "/resource:$zip,bundle.zip" "/win32manifest:$PSScriptRoot\setup.manifest" (Join-Path $PSScriptRoot 'Setup.cs')
-if($LASTEXITCODE -ne 0){throw 'C# compilation failed'}
-Get-Item -LiteralPath $output | Select-Object FullName,Length
-Get-FileHash -LiteralPath $output
+if(!$PayloadRoot){$PayloadRoot=Join-Path $PSScriptRoot '../payload'}
+if(!$Manifest){$Manifest=Join-Path $PSScriptRoot '../manifest.json'}
+if(!$Output){$Output=Join-Path $PSScriptRoot '../dist/ZZXLAB-AnkerMake-PhotoHub-0.8.7-Public-Beta-Win10-Win11-x64-Setup.exe'}
+if(!$Compiler){$found=Get-Command ISCC.exe -ErrorAction SilentlyContinue;if($found){$Compiler=$found.Source}}
+if(!$Compiler){throw 'Set INNO_ISCC to the installed Inno Setup compiler. End users do not need the compiler.'}
+$spec=Get-Content -LiteralPath $Manifest -Raw -Encoding UTF8|ConvertFrom-Json
+if($spec.version -ne '0.8.7'){throw 'Installer version mismatch'}
+foreach($entry in @(@('depth','depth-anything-v2-small.onnx',$spec.bundledAiDepth.modelSha256),@('strokes','teed.onnx',$spec.bundledAiStrokes.modelSha256))){
+ $file=Join-Path $PayloadRoot ('models/'+$entry[0]+'/'+$entry[1])
+ if(!(Test-Path -LiteralPath $file) -or (Get-FileHash -LiteralPath $file).Hash.ToLower() -ne $entry[2]){throw 'Bundled AI model missing or changed'}
+}
+$outputPath=[IO.Path]::GetFullPath($Output)
+[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($outputPath))|Out-Null
+& $Compiler ('/DPayloadRoot='+[IO.Path]::GetFullPath($PayloadRoot)) ('/DOutputRoot='+[IO.Path]::GetDirectoryName($outputPath)) ('/DOutputBaseName='+[IO.Path]::GetFileNameWithoutExtension($outputPath)) (Join-Path $PSScriptRoot 'PhotoHub.iss')
+if($LASTEXITCODE){throw 'Inno Setup compilation failed'}
+Get-Item -LiteralPath $outputPath|Select-Object FullName,Length
+Get-FileHash -LiteralPath $outputPath

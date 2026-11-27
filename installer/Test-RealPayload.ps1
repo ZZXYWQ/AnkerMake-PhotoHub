@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$EditorRoot,[string]$Manifest,[string]$PayloadRoot,[string]$FixtureParent=(Join-Path $env:TEMP 'AnkerMakePhotoHub-tests'))
+﻿param([Parameter(Mandatory=$true)][string]$EditorRoot,[string]$Manifest,[string]$PayloadRoot,[string]$FixtureParent=(Join-Path $env:TEMP 'AnkerMakePhotoHub-tests'))
 if (!$PayloadRoot) { $PayloadRoot=Join-Path $PSScriptRoot '..\payload' }
 if (!$Manifest) { $Manifest=Join-Path $PSScriptRoot '..\manifest.json' }
 $ErrorActionPreference='Stop'

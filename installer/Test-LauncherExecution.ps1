@@ -1,4 +1,4 @@
-# AnkerMake PhotoHub 0.7.0 Public Beta. Execute caller -> child with all host,
+﻿# AnkerMake PhotoHub 0.8.7 Public Beta. Execute caller -> child with all host,
 # bridge, HTTP and port effects mocked. Never starts AnkerMake or a printer.
 param([Parameter(Mandatory=$true)][string]$ChildLauncher,[string]$FixtureParent=(Join-Path $env:TEMP 'AnkerMakePhotoHub-tests'))
 $ErrorActionPreference='Stop'
@@ -28,7 +28,7 @@ $stableSource=$stableSource.Remove($fallback.Extent.StartOffset,$fallback.Extent
 foreach($mode in @('good','existing','wrong-hash','io-retry','child-error')){
     $case=Join-Path $fixture $mode
     $profile=Join-Path $case 'Roaming/eufyMake Studio Profile/cache/offline/web_res'
-    $version=Join-Path $profile 'versions/1.23.02'
+    $version=Join-Path $profile 'versions/1.25.04'
     $plugin=Join-Path $version 'web/eufymake-photocraft'
     $support=Join-Path $case 'Support'
     [IO.Directory]::CreateDirectory($plugin)|Out-Null
@@ -57,7 +57,7 @@ function Start-Process { param($FilePath,$WorkingDirectory,$WindowStyle,$Argumen
  if($FilePath -like '*eufymake studio.exe'){$global:mockHostStarted=$true;$p=[pscustomobject]@{Id=1234;HasExited=$false;MainWindowHandle=[IntPtr]1};$p|Add-Member ScriptMethod Refresh {};return $p}
 }
 function Invoke-RestMethod { param($Uri,$Headers,$TimeoutSec) @{ok=$true} }
-$plugin=Join-Path $PSScriptRoot 'Roaming/eufyMake Studio Profile/cache/offline/web_res/versions/1.23.02/web/eufymake-photocraft'
+$plugin=Join-Path $PSScriptRoot 'Roaming/eufyMake Studio Profile/cache/offline/web_res/versions/1.25.04/web/eufymake-photocraft'
 if($mode -eq 'io-retry'){
  Add-Type -TypeDefinition 'using System; using System.IO; using System.Threading; public static class FixtureLock { public static void Hold(string file,string signal) { var t=new Thread(()=>{using(var f=File.Open(file,FileMode.Open,FileAccess.ReadWrite,FileShare.None)){File.WriteAllText(signal,"ready");Thread.Sleep(230);}});t.IsBackground=true;t.Start(); } }'
  $signal=Join-Path $PSScriptRoot 'lock-ready'

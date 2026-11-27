@@ -14,7 +14,11 @@ cc -O2 native/test_layer_policy.c -o layer-policy-test
 
 协议测试使用临时合成回环服务，墨路/轮廓单元测试使用合成像素。打包测试使用隔离目录及不存在的宿主路径，不连接用户设备。
 
-## 当前 0.7.0 / StartupFix2 验证记录
+## 当前 0.8.7 LocalModesFix 验证
+
+当前适配 Studio 5.1.3 / 编辑器 1.25.04。验证范围见 [0.8.7 记录](verification-0.8.7-localmodesfix.json) 与 [逐项功能状态](FEATURES.md)。四种传统本机方式已在已安装桥接器实际生成；两种 AI 已做完整长图 CPU 输出检查。像素/轮廓/CMYK/预览及打印路由有回归夹具，本轮未实际打印。系统为 Windows 10/11 x64 目标范围，本机 Windows 11 实测不等同所有构建均通过。
+
+## 历史 0.7.0 / StartupFix2 验证记录
 
 Studio 5.1.3 / 编辑器 1.23.02 的图片、轮廓、PSD、保存重开及两条真实本地 RIP 路径结果见 [0.7.0 验证范围](VERIFICATION-0.7.0.md)与 [结构化结果](verification-0.7.0.json)。StartupFix2 仅修复启动，安装、路径及窗口恢复验证见 [启动修复记录](verification-0.7.0-startupfix2.json)；未重新执行整套 RIP 测试，没有实际打印。
 

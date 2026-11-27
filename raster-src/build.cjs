@@ -1,2 +1,2 @@
 const fs=require('fs'),path=require('path');
-fs.writeFileSync(path.join(__dirname,'../payload/raster-tools.js'),['core.js','document.js','native-replace.js','editor.js','layer-controls.js'].map(f=>fs.readFileSync(path.join(__dirname,f),'utf8')).join('\n'));
+fs.writeFileSync(path.join(__dirname,'../payload/raster-tools.js'),['../payload/theme.js','core.js','document.js','native-replace.js','native-full-resolution.js','relief-preview-tiles.js','native-relief-preview.js','local-relief.js','print-algorithm.js','import.js','editor.js','layer-controls.js'].map(f=>fs.readFileSync(path.join(__dirname,f),'utf8')).join('\n'));

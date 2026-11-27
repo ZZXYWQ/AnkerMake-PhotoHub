@@ -1,24 +1,32 @@
-const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
-const {File}=require('node:buffer');
-const listeners={},routed=[],replays=[];
-const window={addEventListener:(type,fn)=>listeners[type]=fn,__EPC_IMPORT_LARGE_FILE:async f=>{routed.push(f);return true;}};
-class Transfer{constructor(){this.files=[];this.items={add:f=>this.files.push(f)}}}
-class DropEvent extends Event{constructor(type,options){super(type,options);this.dataTransfer=options.dataTransfer;this.clientX=options.clientX;}}
-vm.runInNewContext(fs.readFileSync(require('path').join(__dirname,'../payload/large-image-import.js'),'utf8'),{window,WeakSet,WeakMap,Uint8Array,DataView,DataTransfer:Transfer,DragEvent:DropEvent,Event});
-const filter=window.__EPC_IMPORT_FILTER;
-function png(w,h){const b=Buffer.alloc(32);b.writeUInt32BE(0x89504e47,0);b.writeUInt32BE(0x0d0a1a0a,4);b.write('IHDR',12);b.writeUInt32BE(w,16);b.writeUInt32BE(h,20);return new File([b],'fixture.png',{type:'image/png'});}
-function jpeg(w,h){const b=Buffer.alloc(16);b[0]=255;b[1]=216;b[2]=255;b[3]=192;b.writeUInt16BE(12,4);b[6]=8;b.writeUInt16BE(h,7);b.writeUInt16BE(w,9);return new File([b],'fixture.jpg',{type:'image/jpeg'});}
-function webp(w,h){const b=Buffer.alloc(32);b.write('RIFF',0);b.write('WEBP',8);b.write('VP8X',12);b.writeUIntLE(w-1,24,3);b.writeUIntLE(h-1,27,3);return new File([b],'fixture.webp',{type:'image/webp'});}
-function event(file,type='change'){const target={type:'file',files:[file],value:'selected',closest:()=>null,dispatchEvent:e=>{replays.push(e);listeners[e.type](e)}};const e={type,target,dataTransfer:{files:[file]},clientX:127,preventDefault(){this.prevented=true},stopImmediatePropagation(){this.stopped=true}};return e;}
-const tick=()=>new Promise(r=>setImmediate(r));
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+const root=path.resolve(__dirname,'..'),manifest=require('../manifest.json');
+const fixture=process.argv[2]||process.env.PH_NATIVE_EDITOR_FIXTURE;
+if(!fixture){
+ const listeners=[];vm.runInNewContext(fs.readFileSync(path.join(root,'payload/large-image-import.js'),'utf8'),{window:{addEventListener:(...args)=>listeners.push(args)}});
+ assert.equal(listeners.length,0);console.log('PASS native file/drop events retained; set PH_NATIVE_EDITOR_FIXTURE for original editor profile checks');process.exit(0);
+}
+let source=fs.readFileSync(fixture,'utf8');
+for(const p of manifest.files[0].patches){assert.equal(source.split(p.old).length-1,p.count,p.old);source=source.replace(p.old,p.new);}
+const end=(start,next)=>source.slice(source.indexOf(start),source.indexOf(next,source.indexOf(start)));
 (async()=>{
- for(const make of [png,jpeg,webp]){const size=await filter.dimensions(make(30001,2));assert.equal(size.width,30001);assert.equal(size.height,2);assert(filter.oversized(size));}
- assert(!filter.oversized({width:30000,height:1}));assert(!filter.oversized({width:12800,height:12800}));assert(filter.oversized({width:12801,height:12800}));
- let e=event(png(800,600));listeners.change(e);await tick();assert(e.stopped);assert.equal(replays.length,1);assert.equal(routed.length,0);
- e=event(png(30001,1));listeners.change(e);await tick();assert.equal(routed.length,1);assert.equal(e.target.value,'');assert.equal(replays.length,1);
- e=event(png(800,600),'drop');listeners.drop(e);await tick();assert.equal(replays.length,2);assert.equal(replays[1].dataTransfer.files[0],e.dataTransfer.files[0]);assert.equal(replays[1].clientX,127);
- e=event(new File(['bad'],'bad.png',{type:'image/png'}));listeners.change(e);await tick();assert.equal(replays.length,3);
- e=event(png(30001,1));e.target.files.push(png(800,600));listeners.change(e);assert(!e.stopped);
- window.__EUFY_PHOTOCRAFT_LARGE_IMAGES=false;e=event(png(30001,1));listeners.change(e);assert(!e.stopped);
- console.log('PASS PNG/JPEG/WebP header parsing, exact limits, oversized callback, native normal/drop replay, corruption fallback, multi-file untouched, toggle');
+ const window={__EUFY_PHOTOCRAFT_LARGE_IMAGES:false};
+ let cacheReads=0;
+ const scope={window,usePcLocalCache:()=>({get:async()=>{cacheReads++;return [null,'resize']}}),isPc:()=>true,IMAGE_RESIZE_CHOICE:'choice',normalizeImageResizeChoice:x=>x,getLocalStorageCustom:()=> 'resize',setLocalStorage$1:()=>{},isPdfFile:()=>false,getImageSizeFromHeaders:async()=>({width:51160,height:1924}),getFileExtension:()=> 'jpg'};
+ vm.createContext(scope);
+ vm.runInContext(end('function shouldPreprocessImage(', 'function computeTargetSize(')+'\nresize='+end('getImageResizeChoice=async()=>{','},setImageResizeChoice=')+'};\n'+end('async function validateImageDimensions(', 'function isValidHttpUrl('),scope);
+ assert.equal(scope.shouldPreprocessImage(89314640,51160,1924),true);
+ assert.equal(await scope.resize(),'resize');
+ assert.equal(await scope.validateImageDimensions({name:'long.jpg'}),'string_image_side_limit_exceeded');
+ window.__EUFY_PHOTOCRAFT_LARGE_IMAGES=true;
+ assert.equal(scope.shouldPreprocessImage(89314640,51160,1924),false);
+ assert.equal(await scope.resize(),'keep');assert.equal(cacheReads,1,'keep-size must not modify remembered user preference');
+ assert.equal(await scope.validateImageDimensions({name:'long.jpg'}),null);
+ const listeners=[];vm.runInNewContext(fs.readFileSync(path.join(root,'payload/large-image-import.js'),'utf8'),{window:{addEventListener:(...args)=>listeners.push(args)}});assert.equal(listeners.length,0,'native input/drop must not be intercepted');
+ let added,mode;
+ scope.context={get:async kind=>kind==='project'?{getInstance:()=>({getCanvasDpi:()=>5})}:{canvasEditor:{canvas:{width:200,height:400,getObjects:()=>[]},addImageByDpi:(url,size,callback,resize)=>{added=size;mode=resize;}}}};
+ scope.getImageOriginalSize=async()=>({width:1924,height:51160});scope.base64ToUint8Array$2=()=>new Uint8Array();scope.getImageDpi=async()=>({xDPI:72,yDPI:72});scope.StringUtil={pixelToMm:(v,dpi)=>v*25.4/dpi,mmToPixel:(v,dpi)=>v*dpi/25.4};scope.WorkspaceID={WorkspaceCavas:'workspace'};scope.eventBus={emit:()=>{throw Error('Must not ask to shrink image')}};
+ vm.runInContext('importNative='+end('checkImageSizeAndAdd=async(', '},checkSvgSizeAndAdd$1=')+'};',scope);
+ await scope.importNative('original-jpeg',false,'jpg','long.jpg');
+ assert.equal(mode,false);assert(Math.abs(added.width*25.4/5-1924*25.4/72)<1e-8);assert(Math.abs(added.height*25.4/5-51160*25.4/72)<1e-8);
+ console.log('PASS native full-size import: original file/drop events, size gate switch, preprocessing disabled, keep-size without preference mutation, original 72 DPI dimensions retained outside canvas');
 })().catch(e=>{console.error(e);process.exitCode=1});

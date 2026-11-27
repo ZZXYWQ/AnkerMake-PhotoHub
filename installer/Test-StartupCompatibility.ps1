@@ -1,4 +1,4 @@
-# AnkerMake PhotoHub 0.7.0 Public Beta: isolated installer/launcher regression.
+﻿# AnkerMake PhotoHub 0.8.7 Public Beta: isolated installer/launcher regression.
 # Copies signed host artifacts as inert fixtures; never starts the host or a printer.
 param([string]$FixtureParent=(Join-Path $env:TEMP 'AnkerMakePhotoHub-tests'))
 $ErrorActionPreference='Stop'
@@ -23,11 +23,11 @@ $link=$shell.CreateShortcut($originalLink);$link.TargetPath=$hostExe;$link.Argum
 $linkHash=(Get-FileHash -LiteralPath $originalLink).Hash
 $mainHash=(Get-FileHash -LiteralPath $main).Hash
 $indexHash=(Get-FileHash -LiteralPath $index).Hash
-$spec=@{version='0.7.0';supportedHostVersion='5.1.3';hostEditorVersion='1.23.02';supportedHostSha256=(Get-FileHash -LiteralPath $hostExe).Hash;nativeInkSha256=(Get-FileHash -LiteralPath (Join-Path $hostFixture 'ColorEngineAPI.dll')).Hash;nativeInkAbiVerified=$false;nativeInjection=$false;onlineIntegration='cdp';pluginPath='eufymake-photocraft';entryScript='main.editor.js';indexPath='index.html';files=@(@{path='main.editor.js';sha256=$mainHash;patches=@(@{old='limit=300000';new='limit=Infinity';count=1})})}
+$spec=@{version='0.8.7';supportedHostVersion='5.1.3';hostEditorVersion='1.25.04';supportedHostSha256=(Get-FileHash -LiteralPath $hostExe).Hash;nativeInkSha256=(Get-FileHash -LiteralPath (Join-Path $hostFixture 'ColorEngineAPI.dll')).Hash;nativeInkAbiVerified=$false;nativeInjection=$false;onlineIntegration='cdp';pluginPath='eufymake-photocraft';entryScript='main.editor.js';indexPath='index.html';files=@(@{path='main.editor.js';sha256=$mainHash;patches=@(@{old='limit=300000';new='limit=Infinity';count=1})})}
 $manifest=Join-Path $fixture 'manifest.json'
 function SaveManifest{$spec|ConvertTo-Json -Depth 8|Set-Content -LiteralPath $manifest -Encoding UTF8}
 function Run([string]$Action,[bool]$Dry=$false,[bool]$Fail=$false){
-    $arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path $PSScriptRoot 'Manage-Plugin.ps1'),'-Action',$Action,'-HostRoot',$hostFixture,'-EditorRoot',$editorFixture,'-PayloadRoot',$payload,'-Manifest',$manifest,'-ShortcutPath',$pluginLink,'-SupportRoot',$support)
+    $arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path $PSScriptRoot 'Manage-Plugin.ps1'),'-Action',$Action,'-HostRoot',$hostFixture,'-EditorRoot',$editorFixture,'-PayloadRoot',$payload,'-Manifest',$manifest,'-ShortcutPath',$pluginLink,'-SupportRoot',$support,'-DataRoot',(Join-Path $fixture 'data'))
     if($Dry){$arguments+='-DryRun'}
     $priorPreference=$ErrorActionPreference;$ErrorActionPreference='Continue'
     & powershell.exe @arguments 2>&1|Out-String|Write-Host
@@ -43,6 +43,8 @@ if(Test-Path -LiteralPath $support){throw 'Dry run created support directory'}
 Run Install
 $stable=Join-Path $support 'Start-PhotoHub.ps1'
 $inner=Join-Path $editorFixture 'eufymake-photocraft/Start-EufyPhotoCraft.ps1'
+$configuration=Get-Content -LiteralPath (Join-Path $editorFixture 'eufymake-photocraft/config.json') -Raw -Encoding UTF8|ConvertFrom-Json
+if($configuration.dataRoot -ne (Join-Path $fixture 'data')){throw 'Configured data root was not recorded in the owned configuration'}
 $errors=$null;$tokens=$null
 foreach($script in @($stable,$inner)){
     [Management.Automation.Language.Parser]::ParseFile($script,[ref]$tokens,[ref]$errors)|Out-Null
@@ -56,6 +58,11 @@ foreach($path in @($pluginLink,$originalLink)){
 }
 Run Install
 $savedStable=[IO.File]::ReadAllBytes($stable)
+# Earlier Windows PowerShell ownership records may carry a UTF-8 BOM.
+$supportRecord=Join-Path $support 'launcher-state.json'
+$recordText=[IO.File]::ReadAllText($supportRecord)
+[IO.File]::WriteAllText($supportRecord,$recordText,(New-Object Text.UTF8Encoding($true)))
+Run Install $true
 Remove-Item -LiteralPath $stable
 Run Install
 if(!(Test-Path -LiteralPath $stable)){throw 'Missing owned launcher was not repaired'}

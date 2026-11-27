@@ -1,4 +1,4 @@
-# AnkerMake PhotoHub 0.7.0 Public Beta. Host 5.1.3 / editor 1.23.02 only; other host versions unsupported.
+# AnkerMake PhotoHub 0.8.5 Public Beta. Host 5.1.3 / editor 1.25.04; unknown builds are not supported.
 """Inject only the fixed local extension bootstrap into original editor pages.
 
 Uses the host's supported loopback CDP switch. Does not read cookies, storage,
@@ -17,7 +17,7 @@ import urllib.request
 
 CDP_PORT = 19849
 HOSTS = frozenset(('makeitreal-beta.eufymake.com', 'makeitreal.ankermake.com', 'makeitreal.eufymake.com'))
-MAX_MESSAGE = 1024 * 1024
+MAX_MESSAGE = 8 * 1024 * 1024
 
 
 class NoRedirects(urllib.request.HTTPRedirectHandler):
@@ -133,6 +133,10 @@ def start_loader(config, stop_event=None):
     stop_event = stop_event or threading.Event()
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirects())
     status = {'running': True, 'attached': 0, 'lastError': None}
+    from native_raster import patch_native_import
+    from native_preview import prepare_preview
+    status['nativeRaster'] = {'ready': 0, 'pending': 0, 'lastError': None}
+    status['nativePreview'] = {'ready': 0, 'lastError': None}
 
     def worker():
         while not stop_event.is_set():
@@ -145,16 +149,32 @@ def start_loader(config, stop_event=None):
                 if not isinstance(targets, list):
                     raise ValueError('Invalid CDP target listing')
                 count = 0
+                native_ready = native_pending = 0
+                native_error = None
+                preview_ready = 0
+                preview_error = None
                 for target in targets[:64]:
                     if stop_event.is_set():
                         break
                     try:
                         if isinstance(target, dict) and target.get('type') == 'page' and allowed_editor(target.get('url')):
+                            try:
+                                native_result = patch_native_import(target.get('webSocketDebuggerUrl', ''))
+                                native_ready += int(native_result == 'ready')
+                                native_pending += int(native_result == 'pending')
+                            except Exception as error:
+                                native_error = type(error).__name__
                             if inject(target.get('webSocketDebuggerUrl', ''), expression):
                                 count += 1
+                            try:
+                                preview_ready += int(prepare_preview(target['url']).get('ready') is True)
+                            except Exception as error:
+                                preview_error = type(error).__name__
                     except Exception:
                         # A closing/navigation target must not block other editors.
                         continue
+                status['nativeRaster'].update(ready=native_ready, pending=native_pending, lastError=native_error)
+                status['nativePreview'].update(ready=preview_ready, lastError=preview_error)
                 status['attached'] = count
                 status['lastError'] = None
             except Exception as error:

@@ -1,4 +1,4 @@
-/* AnkerMake PhotoHub 0.7.0 Public Beta. Host 5.1.3 / editor 1.23.02 only. Older PhotoHub releases must not be used for layer-local CMYK jobs. */
+/* AnkerMake PhotoHub 0.8.5 Public Beta. Host 5.1.3 / editor 1.25.04. Older PhotoHub releases must not be used for layer-local CMYK jobs. */
 /* Layer-local channel settings, native project serialization, and print-space policy. */
 (() => {
  'use strict';

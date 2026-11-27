@@ -1,6 +1,8 @@
 PhotoHub is an unofficial extension. The current installer does not bundle the standalone PhotoCraft application, the eufyMake host, ICC profiles, or proprietary host DLLs.
 
-The bridge executable bundles Python, Pillow, and the PyInstaller runtime.
+The bridge executable bundles Python, Pillow, NumPy, ONNX Runtime (CPU), and the PyInstaller runtime.
+The installer bundles Depth Anything V2 Small (Apache-2.0) and TEED (MIT), exported from their official weights.
+Model source, revision, checksums and license are in models/depth/. No model download or external Python/ComfyUI is required.
 Their license texts are included in licenses/. PyInstaller's bootloader
 exception permits distribution of applications built using PyInstaller.
 

@@ -1,0 +1,35 @@
+{
+  "plugin": "0.8.7 LocalModesFix Public Beta",
+  "installerFileVersion": "0.8.7.0",
+  "compatibility": {
+    "host": "AnkerMake Studio 5.1.3",
+    "editor": "1.25.04",
+    "osTarget": "Windows 10/11 x64",
+    "actualOS": "Windows 11 x64",
+    "allOSBuildsTested": false
+  },
+  "date": "2026-11-28",
+  "checks": {
+    "openIssuesAtRelease": 0,
+    "regressionSuite": "node scripts/test.cjs passed: pixels, contours, full-resolution, tiled preview, native relief apply/undo, restored modes with and without AI, theme, CMYK, print routes",
+    "traditionalRuntime": "surface, ink, tone, detail generated on installed bridge with 80x120 synthetic source; dimensions, nonempty range and SHA256 checked",
+    "aiRuntime": "both bundled CPU models previously generated full 1924x51160 output; dimensions and SHA256 checked; TEED depthMixed=false",
+    "installedUI": "all six generation choices selectable; source dimensions/geometry/craft/CMYK snapshot unchanged",
+    "installer": "complete prior 0.8.7 wizard isolated install/uninstall and original restoration passed (35 payload files); release wrapper adds documentation only; final EXE structure and model hashes checked",
+    "startup": "installed complete version cold-started and saved project reopened",
+    "actualPrinting": false,
+    "allFeaturesIndividuallyRetestedInHost": false,
+    "allCMYKCraftsRetested": false
+  },
+  "limitations": [
+    "All releases are public betas; bugs and delayed fixes are possible.",
+    "AI depth and strokes are experimental. Artistic quality and physical print quality are not guaranteed.",
+    "Historical 0.7.0 final PRN channel-zero checks do not prove every current project and craft combination.",
+    "No complete installer/uninstaller rerun against the registered production installation for the documentation-only final wrapper."
+  ],
+  "models": {
+    "depth": "Depth Anything V2 Small / Apache-2.0",
+    "strokes": "TEED / MIT"
+  },
+  "thanks": "RYAN"
+}

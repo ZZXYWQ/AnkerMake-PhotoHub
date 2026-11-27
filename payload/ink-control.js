@@ -5,7 +5,7 @@
   window.__EPC_INK_UI?.dispose();
   const layer=window.EPCLayerInk.install({api,host,status});
   let disposed=false,pending=false,current=null,draft=null,target=null,tick=0,lastRead=0;
-  const box=document.createElement('section');box.id='epc-ink-control';
+  const box=document.createElement('section');box.id='epc-ink-control';box.className='epc-native';
   box.style.cssText='font:inherit;color:inherit;border-top:1px solid #e8e8e8;margin-top:12px;padding-top:12px';
   box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span>当前图层 CMYK</span><button type="button" data-all style="font:inherit;border:0;background:transparent;color:#777;cursor:pointer">全选</button></div><div data-channels style="display:flex;gap:14px;align-items:center"></div><div data-note role="status" style="font-size:11px;color:#888;line-height:1.6;margin-top:9px">正在连接墨路组件…</div><div style="font-size:11px;color:#888;line-height:1.6;margin-top:4px">仅修改当前图层，随项目保存；白墨、光油沿用该层原版工艺。</div>';
   const note=box.querySelector('[data-note]'),inputs=[];
@@ -13,7 +13,8 @@
   for(const [index,name]of ['C','M','Y','K'].entries()){
    const label=document.createElement('label');label.style.cssText='display:flex;gap:4px;align-items:center;cursor:pointer';
    const input=document.createElement('input');input.type='checkbox';input.dataset.channel=name;input.setAttribute('aria-label','当前图层 '+name+' 墨路');input.style.accentColor='#2ac660';input.disabled=true;
-   input.onchange=()=>change(inputs.reduce((mask,x,i)=>mask|(x.checked?1<<i:0),0));label.append(input,name);inputs.push(input);box.querySelector('[data-channels]').append(label);
+   const mark=document.createElement('span');mark.className='epc-channel-mark';mark.dataset.ink=name;mark.textContent=name;
+   input.onchange=()=>change(inputs.reduce((mask,x,i)=>mask|(x.checked?1<<i:0),0));label.append(input,mark);inputs.push(input);box.querySelector('[data-channels]').append(label);
   }
   box.querySelector('[data-all]').onclick=()=>change(15);
   function selected(){try{return layer.selected();}catch{return null;}}

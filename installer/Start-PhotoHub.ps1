@@ -1,4 +1,4 @@
-# AnkerMake PhotoHub 0.7.0 Public Beta. Resolve the current editor after every host update.
+﻿# AnkerMake PhotoHub 0.8.7 Public Beta. Resolve the current editor after every host update.
 # All releases are test versions; bugs and delayed fixes are possible.
 $ErrorActionPreference='Stop'
 $nativeHost='__EPC_HOST__'

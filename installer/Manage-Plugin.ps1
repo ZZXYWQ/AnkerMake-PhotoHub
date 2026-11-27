@@ -6,11 +6,13 @@
     [string]$Manifest,
     [string]$ShortcutPath,
     [string]$SupportRoot,
+    [string]$DataRoot,
+    [string]$IconPath,
     [switch]$DryRun
 )
 if (!$PayloadRoot) { $PayloadRoot=Join-Path $PSScriptRoot '..\payload' }
 if (!$Manifest) { $Manifest=Join-Path $PSScriptRoot '..\manifest.json' }
-# AnkerMake PhotoHub 0.7.0 Public Beta; host/editor/native ABI must all be validated.
+# AnkerMake PhotoHub 0.8.7 Public Beta; host/editor/native ABI must all be validated.
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $HostRoot = [IO.Path]::GetFullPath($HostRoot).TrimEnd('\','/')
@@ -34,7 +36,10 @@ function SafePath([string]$Root,[string]$Relative) {
     }
     return $result
 }
-function Hash([string]$Path) { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash }
+function Hash([string]$Path) {
+ $stream=[IO.File]::OpenRead($Path);$sha=[Security.Cryptography.SHA256]::Create()
+ try{return [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','')}finally{$sha.Dispose();$stream.Dispose()}
+}
 function StoredFilePath([string]$Path) {
     # Packaged installers may see a virtual AppData path. Shell shortcuts run
     # outside that identity, so persist the physical path of the written file.
@@ -123,7 +128,9 @@ $supportStateBytes=$null
 if(Test-Path -LiteralPath $supportLauncher){$supportPrior=[IO.File]::ReadAllBytes($supportLauncher)}
 if(Test-Path -LiteralPath $supportStatePath){
     $supportPriorState=[IO.File]::ReadAllBytes($supportStatePath)
-    $supportExisting=$utf8.GetString($supportPriorState)|ConvertFrom-Json
+    # Windows PowerShell may write UTF-8 JSON with a BOM. Decode metadata only;
+    # file ownership hashes still cover the original, unchanged byte arrays.
+    $supportExisting=$utf8.GetString($supportPriorState).TrimStart([char]0xFEFF)|ConvertFrom-Json
 }
 if($oldState -and ($oldState.PSObject.Properties.Name -contains 'supportRoot') -and [IO.Path]::GetFullPath([string]$oldState.supportRoot).TrimEnd('\','/') -ne $SupportRoot){throw 'Plugin support path mismatch; no files changed.'}
 $supportOwnedByAnotherEditor=$supportExisting -and [string]$supportExisting.ownerEditorRoot -ne $HostRoot
@@ -182,7 +189,7 @@ function PlanNative([bool]$Install,[string]$Token) {
     $nativePrior=[IO.File]::ReadAllBytes($nativeExe)
     $nativeOriginal=$nativePrior
     if ($nativePriorState) {
-        $existing=$utf8.GetString($nativePriorState) | ConvertFrom-Json
+        $existing=$utf8.GetString($nativePriorState).TrimStart([char]0xFEFF) | ConvertFrom-Json
         if ((ByteHash $nativePrior) -ne $existing.installedSha256) { throw 'Native application changed since extension installation; refusing overwrite.' }
         $nativeOriginal=[IO.File]::ReadAllBytes($nativeOriginalPath)
     }
@@ -276,7 +283,19 @@ if ($Action -eq 'Uninstall') {
     $rng=[Security.Cryptography.RandomNumberGenerator]::Create()
     try { $rng.GetBytes($tokenBytes) } finally { $rng.Dispose() }
     $token=[BitConverter]::ToString($tokenBytes).Replace('-','').ToLowerInvariant()
-    $configuration=@{token=$token;port=19847;hostExecutable=(Join-Path $ProcessRoot 'eufymake studio.exe')}|ConvertTo-Json -Compress
+    $configurationData=@{token=$token;port=19847;hostExecutable=(Join-Path $ProcessRoot 'eufymake studio.exe')}
+    if(!$DataRoot -and $oldState){
+        $previousConfig=SafePath $HostRoot "$pluginRelative/config.json"
+        if(Test-Path -LiteralPath $previousConfig){
+            $previousConfiguration=Get-Content -LiteralPath $previousConfig -Raw -Encoding UTF8|ConvertFrom-Json
+            if($previousConfiguration.PSObject.Properties.Name -contains 'dataRoot'){$DataRoot=[string]$previousConfiguration.dataRoot}
+        }
+    }
+    if($DataRoot){
+        if(![IO.Path]::IsPathRooted($DataRoot)){throw 'PhotoHub data root must be an absolute path. No files changed.'}
+        $configurationData.dataRoot=[IO.Path]::GetFullPath($DataRoot)
+    }
+    $configuration=$configurationData|ConvertTo-Json -Compress
     Plan "$pluginRelative/config.json" ($utf8.GetBytes($configuration))
     Plan "$pluginRelative/config.js" ($utf8.GetBytes("window.__EPC_CONFIG=$configuration;"))
     if (($manifestData.PSObject.Properties.Name -contains 'nativeInjection') -and $manifestData.nativeInjection) { throw 'Native disk injection is unsupported. Use the signed original application with loopback CDP integration.' }
@@ -477,7 +496,7 @@ try {
             $shortcut.TargetPath=Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
             $storedLauncher=StoredFilePath $(if($useCdp){$supportLauncher}else{SafePath $HostRoot "$pluginRelative/Start-EufyPhotoCraft.ps1"})
             $shortcut.Arguments='-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+$storedLauncher+'"'
-            $shortcut.WorkingDirectory=[IO.Path]::GetDirectoryName($storedLauncher);$shortcut.IconLocation=$hostExecutable[0].FullName;$shortcut.Save()
+            $shortcut.WorkingDirectory=[IO.Path]::GetDirectoryName($storedLauncher);$shortcut.IconLocation=$(if($IconPath){[IO.Path]::GetFullPath($IconPath)}else{$hostExecutable[0].FullName});$shortcut.Save()
             $state.shortcut=@{path=$shortcutPath;hash=(Hash $shortcutPath)}
         }
         foreach($entry in $hostLinkChanges){

@@ -7,12 +7,11 @@
   window.__EPC_DISCOVERY = true;
   const runtime = window.__EPC_RUNTIME = {editor: null, project: null, fiber: null};
   let attempts = 0, lastSignature = '', loadingScripts = false, discoveringManager = false, managerVerified = false;
-  // The 1.23 editor keeps its ProjectManager in a module singleton instead of
+  // The 1.25 editor keeps its ProjectManager in a module singleton instead of
   // exposing the editor/project pair directly in React hooks. Only import a
   // module whose bytes and public singleton export have been verified.
   const managerModules = [
-    {name: 'Generating_img-Sr0X61KY.js', hash: 'd94001702f1164a060c4453d399249feea7b36acf4f7241cd4e7e0a8cc67a6a5', key: 'ut'},
-    {name: 'cavasUtil-ROGidih4.js', hash: '32addb8a6fe5a1a15ebfc00f9547c61635e2e765533b1548340621d1363701a0', key: 'R'}
+    {name: 'cavasUtil-ByCG8TNr.js', hash: 'e8476b5f1cbe1de5d8da12d173f672ce6e43db6f5dccc32c5769089c1c05412e', key: 'Y'}
   ];
   function validEditor(editor) {
     const canvas = editor?.canvas, upper = canvas?.upperCanvasEl, lower = canvas?.lowerCanvasEl;
@@ -116,7 +115,8 @@
         });
       }
     };
-    window.__EUFY_PHOTOCRAFT_LARGE_IMAGES = true;
+    window.__EUFY_PHOTOCRAFT_LARGE_IMAGES ??= true;
+    window.EPCFullResolution?.install(window.__EPC_HOST);
     if (!loadingScripts && !window.__EPC_UI) {
       loadingScripts = true;
       const filter = document.createElement('script');

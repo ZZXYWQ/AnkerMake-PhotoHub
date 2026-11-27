@@ -1,33 +1,12 @@
 ﻿param([Parameter(Mandatory=$true)][string]$Package,[Parameter(Mandatory=$true)][string]$PayloadRoot)
 $ErrorActionPreference='Stop'
-Add-Type -AssemblyName System.IO.Compression
-$assembly=[Reflection.Assembly]::LoadFile([IO.Path]::GetFullPath($Package))
-$resource=$assembly.GetManifestResourceStream('bundle.zip')
-if(!$resource){throw 'Setup resource bundle missing'}
-$memory=New-Object IO.MemoryStream
-$resource.CopyTo($memory);$resource.Dispose();$memory.Position=0
-$zip=New-Object IO.Compression.ZipArchive($memory,[IO.Compression.ZipArchiveMode]::Read)
-try{
- $reader=New-Object IO.StreamReader($zip.GetEntry('manifest.json').Open())
- try{$manifest=$reader.ReadToEnd()|ConvertFrom-Json}finally{$reader.Dispose()}
- if($manifest.version -ne '0.7.0'){throw 'Wrong setup version'}
- foreach($required in @('Manage-Plugin.ps1','Start-PhotoHub.ps1')){
-  $entry=$zip.GetEntry($required)
-  if(!$entry){throw "Missing installer component: $required"}
-  $stream=$entry.Open();$sha=[Security.Cryptography.SHA256]::Create()
-  try{$actual=[BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','')}finally{$stream.Dispose();$sha.Dispose()}
-  if($actual -ne (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $required)).Hash){throw "Packaged installer component differs: $required"}
- }
- $base=[IO.Path]::GetFullPath($PayloadRoot).TrimEnd('\','/')+'\';$checked=0
- foreach($file in Get-ChildItem -LiteralPath $PayloadRoot -Recurse -File){
-  $relative=$file.FullName.Substring($base.Length).Replace('\','/')
-  $entry=$zip.Entries|Where-Object {$_.FullName.Replace('\','/') -eq ('payload/'+$relative)}|Select-Object -First 1;if(!$entry){throw "Missing packaged payload: $relative"}
-  $sha=[Security.Cryptography.SHA256]::Create();$stream=$entry.Open()
-  try{$actual=[BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-','')}finally{$stream.Dispose();$sha.Dispose()}
-  if($actual -ne (Get-FileHash -LiteralPath $file.FullName).Hash){throw "Packaged payload mismatch: $relative"};$checked++
- }
- $entry=$zip.Entries|Where-Object {$_.FullName.Replace('\','/') -eq 'payload/native/PhotoHubInk.dll'}|Select-Object -First 1;$stream=$entry.Open();$bytes=New-Object IO.MemoryStream;$stream.CopyTo($bytes);$stream.Dispose()
- if([Text.Encoding]::ASCII.GetString($bytes.ToArray()).Contains('PhotoHubTestPolicy')){throw 'Test-only native entry point in release'}
- $bytes.Dispose()
- Write-Output "PASS single EXE resource bundle: version $($manifest.version), $checked payload files byte-exact, production native DLL, complete payload"
-}finally{$zip.Dispose();$memory.Dispose()}
+$file=Get-Item -LiteralPath $Package
+if($file.VersionInfo.FileVersion.Trim() -ne '0.8.7.0'){throw 'Unexpected setup version'}
+$bytes=[IO.File]::ReadAllBytes($file.FullName)
+if($bytes[0] -ne 77 -or $bytes[1] -ne 90 -or ![Text.Encoding]::ASCII.GetString($bytes).Contains('Inno Setup Setup Data')){throw 'Not a complete Inno Setup executable'}
+$spec=Get-Content -LiteralPath (Join-Path $PSScriptRoot '../manifest.json') -Raw -Encoding UTF8|ConvertFrom-Json
+foreach($entry in @(@('depth','depth-anything-v2-small.onnx',$spec.bundledAiDepth.modelSha256),@('strokes','teed.onnx',$spec.bundledAiStrokes.modelSha256))){
+ $path=Join-Path $PayloadRoot ('models/'+$entry[0]+'/'+$entry[1])
+ if((Get-FileHash -LiteralPath $path).Hash.ToLower() -ne $entry[2]){throw 'Source AI model hash mismatch'}
+}
+Write-Output 'PASS single Inno Setup EXE: version 0.8.7, embedded setup data and verified model source hashes. Run the wizard test for installed payload verification.'

@@ -1,7 +1,7 @@
 /* 0.3: native canvas tools; no separate editing window. */
 (() => {'use strict';
- if(window.__EPC_UI)return;const cfg=window.__EPC_CONFIG,host=window.__EPC_HOST;if(!cfg||!host)return;window.__EPC_UI=true;window.__EUFY_PHOTOCRAFT_LARGE_IMAGES=true;
- let ui,raster,contours,layer,busy=false;
+ if(window.__EPC_UI)return;const cfg=window.__EPC_CONFIG,host=window.__EPC_HOST;if(!cfg||!host)return;window.__EPC_UI=true;window.__EUFY_PHOTOCRAFT_LARGE_IMAGES??=true;
+ let ui,raster,contours,layer,relief,busy=false;
  const status=text=>ui?ui.status(text):console.info('PhotoHub:',text);
  async function component(name,globalName){if(window[globalName])return window[globalName];await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=`http://127.0.0.1:${cfg.port}/${name}`;const timer=setTimeout(()=>{s.remove();reject(Error('载入超时 '+name));},20000);s.onload=()=>{clearTimeout(timer);if(window[globalName])resolve();else reject(Error('组件未就绪 '+name));};s.onerror=()=>{clearTimeout(timer);s.remove();reject(Error('无法载入 '+name));};document.head.append(s);});return window[globalName];}
  async function api(path,body){const r=await fetch(`http://127.0.0.1:${cfg.port}${path}`,{method:body===undefined?'GET':'POST',headers:{'X-EPC-Token':cfg.token,...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body)});const value=await r.json();if(!r.ok)throw Error(value.error||'本机组件失败');return value;}
@@ -12,8 +12,18 @@
  function cancel(){raster?.cancel();contours?.cancel();status('已退出当前编辑工具。');}
  async function run(fn){if(busy){status('正在处理，请稍候。');return false;}busy=true;try{await fn();return true;}catch(e){status(e.message||String(e));return false;}finally{busy=false;}}
  async function pixels(o){const image=await host.original(o);const c=document.createElement('canvas');c.width=image.naturalWidth||image.width;c.height=image.naturalHeight||image.height;if(!c.width||!c.height)throw Error('原图尚未加载');const ctx=c.getContext('2d');if(!ctx)throw Error('无法分配原图内存');ctx.drawImage(image,0,0);const dataUrl=c.toDataURL('image/png');c.width=c.height=0;if(!dataUrl.startsWith('data:image/png;base64,'))throw Error('图片超出浏览器画布能力，未进行降采样');return dataUrl;}
- async function addImage(dataUrl,width,height,mm=100){const ed=editor(),project=host.project(),dpi=host.dpi();if(!window.__EUFY_PHOTOCRAFT_LARGE_IMAGES&&(width>30000||height>30000||width*height>163840000))throw Error('图片超过原版尺寸限制，可在左下角开启解除限制。');if(!Number.isFinite(dpi)||dpi<=0||!Number.isFinite(mm)||mm<=0)throw Error('打印尺寸无效');await api('/artifacts',{dataUrl});if(editor()!==ed||host.project()!==project)throw Error('项目已切换，图像已保存，未添加');let object;await ed.addImageByDpi(dataUrl,{width:mm*dpi/25.4,height:mm*height/width*dpi/25.4,fileName:'PhotoHub.png'},o=>{object=o;},false);if(!object)throw Error('原软件未确认添加图片');const command=await ed.executeCommand('addImageCommand',{object});if(command?.id!==object.id)throw Error('已添加图片，但撤销记录未确认');ed.canvas.setActiveObject(object);ed.canvas.requestRenderAll();return object;}
- async function importFile(file){if(!file)return;if(/\.psd$/i.test(file.name||''))return importPSD(file);await finish();const url=URL.createObjectURL(file);try{const image=new Image();image.src=url;await image.decode();const c=document.createElement('canvas');c.width=image.naturalWidth;c.height=image.naturalHeight;const ctx=c.getContext('2d');if(!ctx)throw Error('无法分配原图内存');ctx.drawImage(image,0,0);const dataUrl=c.toDataURL('image/png');if(!dataUrl.startsWith('data:image/png;base64,'))throw Error('图片超出浏览器导出能力；未缩小原图');await addImage(dataUrl,c.width,c.height);c.width=c.height=0;status('图片已直接加入原画布，可从 PhotoHub 菜单选择编辑工具。');}finally{URL.revokeObjectURL(url);}}
+ async function addImage(dataUrl,width,height,mm=100,fileName='PhotoHub.png',persist=true,place){const ed=editor(),project=host.project(),dpi=host.dpi();if(!window.__EUFY_PHOTOCRAFT_LARGE_IMAGES&&(width>30000||height>30000||width*height>163840000))throw Error('图片超过原版尺寸限制，可在左下角开启解除限制。');if(!Number.isFinite(dpi)||dpi<=0||!Number.isFinite(mm)||mm<=0)throw Error('打印尺寸无效');if(persist)await api('/artifacts',{dataUrl});if(editor()!==ed||host.project()!==project)throw Error('项目已切换，图像已保存，未添加');let object;await ed.addImageByDpi(dataUrl,{width:mm*dpi/25.4,height:mm*height/width*dpi/25.4,fileName},o=>{object=o;},false);if(!object)throw Error('原软件未确认添加图片');try{if(place)place(object);}catch(error){if(ed.canvas.getObjects().includes(object))ed.canvas.remove(object);throw error;}const command=await ed.executeCommand('addImageCommand',{object});if(command?.id!==object.id)throw Error('已添加图片，但撤销记录未确认');
+  // Native AddImageCommand.undo drops orientation from its redo arguments.
+  // Preserve the transform of this import, including later user rotations.
+  if(place&&typeof command.undo==='function'){const undo=command.undo;command.undo=async function(...args){const current=ed.canvas.getObjects().find(o=>o.id===this.id);const meta=current?Object.fromEntries(['angle','flipX','flipY','originX','originY','_layerNameCus'].filter(k=>current[k]!==undefined).map(k=>[k,current[k]])):null;const ok=await undo.apply(this,args);if(ok&&meta&&this.arguments)Object.assign(this.arguments,meta);return ok;};}
+  ed.canvas.setActiveObject(object);ed.canvas.requestRenderAll();return object;}
+ async function importFile(file){
+  if(!file)return;if(/\.psd$/i.test(file.name||''))return importPSD(file);await finish();
+  const nativeImport=host.nativeImportFile||window.__EPC_NATIVE_IMPORT_FILE;
+  if(typeof nativeImport!=='function')throw Error('当前编辑器未加载原版整图导入修复，请完成安装并重启');
+  status('原版正在导入完整原图；保留文件 DPI 尺寸，不缩小、不分块。');
+  return nativeImport(file);
+ }
  async function importPSD(file,widthMm=100){if(!file)throw Error('请选择 PSD 文件');const result=await window.EPCPSD.importFile(file,{editor,host,status,finish,save:dataUrl=>api('/artifacts',{dataUrl}),widthMm});window.__EPC_LAST_PSD_IMPORT=result;return result;}
  function nativeTool(text){const item=[...document.querySelectorAll('.menu-list .menu-item')].find(e=>e.querySelector('.menu-item-text')?.textContent.trim()===text);if(!item)throw Error('当前页面未找到原版'+text+'入口');item.click();}
  async function boot(){await Promise.all([component('native-ui.js','EPCNativeUI'),component('context-menu.js','EPCContextMenu'),component('raster-tools.js','EPCRaster'),component('contours.js','EPCContours'),component('contour-host.js','EPCContourHost'),component('canvas-contours.js','EPCCanvasContours')]);
@@ -43,8 +53,10 @@
  action('contour-recognize',async options=>{await finish();await contours.recognize(options);},()=>!plainImage());
  action('contour-image',async()=>{await finish();await contours.recognize({mode:'alpha',resolution:1024,threshold:127});},()=>!plainImage());
  action('simplify',()=>contours.simplify(.1),()=>!contours.isEditing());action('smooth',()=>contours.smooth(),()=>!contours.isEditing());action('delete-node',()=>contours.deleteNode(),()=>!contours.isEditing());
+ relief=window.EPCLocalRelief.create({api,host,finish,status});
  ui=window.EPCNativeUI.install({actions});
  window.EPCPanGuard?.install({editor});
+ window.EPCFullResolution?.install(host);
  for(const id of ['layer-form','new-form','psd-form','contour-form','adjust-form','blur-form','levels-form','curves-form','feather-form','tools','help'])actions[id]=()=>ui.showSide(id);
  window.EPCContextMenu.install({actions,items:()=>{
   const entries=[['new-form','新建图片…'],['psd-form','导入 PSD（保留图层）…']];
@@ -55,12 +67,29 @@
   if(raster.isActive())entries.push(['selection-all','像素全选'],['selection-none','取消像素选区'],['selection-invert','反选像素'],['feather-form','羽化选区…'],['selection-fill','填充选区'],['selection-delete','删除选区像素'],['selection-cutout','按选区抠图'],['raster-undo','撤销像素操作'],['raster-redo','重做像素操作']);
   if(raster.isActive()||contours.isEditing())entries.push(['finish','完成编辑'],['cancel','取消编辑']);return entries;
  }});
- window.__EPC_IMPORT_LARGE_FILE=file=>run(()=>importFile(file));window.__EPC_APP={actions,raster,contours,layer,ui,importFile:file=>run(()=>importFile(file))};
+ relief.installRightPanel();
+ const printAlgorithm=window.EPCPrintAlgorithm.create({host,relief,finish,status});printAlgorithm.install();
+ window.__EPC_IMPORT_LARGE_FILE=file=>run(()=>importFile(file));window.__EPC_APP={actions,raster,contours,layer,relief,printAlgorithm,ui,importFile:file=>run(()=>importFile(file))};
  window.EPCComposition?.installUI({host,status});
  await api('/health');status('PhotoHub 已就绪：使用顶部菜单、左侧工具或原版右键菜单。');
  }
  boot().catch(error=>{window.__EPC_UI=false;status('PhotoHub 初始化失败：'+error.message);});
 })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -205,68 +234,94 @@ function create({editor,project}){
 window.EPCComposition={create};
 })();
 
-/* AnkerMake PhotoHub 0.7.0 Public Beta. Host 5.1.3 / editor 1.23.02 only; older releases are unsupported. */
+/* AnkerMake PhotoHub 0.8.5 Public Beta. Host 5.1.3 / editor 1.25.04; older releases are unsupported. */
 /* Version-checked adapters for the installed online editor. Original source stays on its server. */
 (()=>{
 const expected={
- 'PrintFileLayerManager-EDl4kp3F.js':'fcbb629fd5a0cd7dc3d8d10894cab3e1445499503a099579cce5c240d6ed5e24',
- 'Generating_img-Sr0X61KY.js':'d94001702f1164a060c4453d399249feea7b36acf4f7241cd4e7e0a8cc67a6a5'
+ 'PrintFileLayerManager-emMpUQft.js':'602185844d03d385f6009735631245983fd39ced6949e0cf57679cc88eeb77e4',
+ 'printCanvasUtil-BGHFT_Zz.js':'c9eff7b02a982f4d6775a25258b18823184b701d72d31db65f6c16c2e2aac63c',
+ 'src-CeiAY1Ls.js':'fe3d1aa08e10473756c2b7171f346dd4cb39f9b6216ae4f9d7b619ad90eab7eb'
 };
 const patches={
- 'PrintFileLayerManager-EDl4kp3F.js':[
- ['if(t!==_.GLOSS&&t!==_.GILD&&!e.textureType)continue;',"if(window.__EPC_COMPOSITION.sync().mode!=='top')continue;"],
- ['await ve(r,()=>{Z.renderInCropCoords(r,x,f,p)}),e+1<i.length','await window.EPCComposition.renderNative(r,x,c=>Z.renderInCropCoords(r,c,f,p)),await window.__EPC_COMPOSITION.own(x,r,c=>window.EPCComposition.renderNative(r,c,d=>Z.renderInCropCoords(r,d,f,p))),e+1<i.length'],
- ['e.globalCompositeOperation=`destination-out`,await ve(e,()=>{Z.contourClipPathRender(e,x)}),e.globalCompositeOperation=`source-over`','await window.__EPC_COMPOSITION.erase(x,e,c=>window.EPCComposition.renderNative(e,c))'],
- ['n.imgComplete=!0,g.drawImage(D,C,w,T,E),D.close()','n.imgComplete=!0,window.__EPC_COMPOSITION.merge(g,D,C,w,T,E),D.close()'],
+ 'printCanvasUtil-BGHFT_Zz.js':[
+ ['if(t!==g.GLOSS&&t!==g.GILD&&!e.textureType)continue;',"if(window.__EPC_COMPOSITION.sync().mode!=='top')continue;"],
+ ['await Ce(r,()=>{Q.renderInCropCoords(r,w,p,m)}),e+1<i.length','await window.EPCComposition.renderNative(r,w,c=>Q.renderInCropCoords(r,c,p,m)),await window.__EPC_COMPOSITION.own(w,r,c=>window.EPCComposition.renderNative(r,c,d=>Q.renderInCropCoords(r,d,p,m))),e+1<i.length'],
+ ['e.globalCompositeOperation=`destination-out`,await Ce(e,()=>{Q.contourClipPathRender(e,w)}),e.globalCompositeOperation=`source-over`','await window.__EPC_COMPOSITION.erase(w,e,c=>window.EPCComposition.renderNative(e,c))'],
+ ['n.imgComplete=!0,_.drawImage(O,w,T,E,D),O.close()','n.imgComplete=!0,window.__EPC_COMPOSITION.merge(_,O,w,T,E,D),O.close()'],
  ['if(v||(y=``),y&&!e){',"if((window.__EPC_COMPOSITION.sync().mode==='top'||v)||(y=``),y&&!e&&window.__EPC_COMPOSITION.sync().mode!=='top'){"]
  ],
- 'Generating_img-Sr0X61KY.js':[
- ['let a=r.toDataURL();return r.width=0,r.height=0,r.remove(),a','let a=r.toDataURL();r.width=0,r.height=0,r.remove();return window.EPCLayerInk?await window.EPCLayerInk.rotatePolicy(e,a):a'],
- ['gr.contourClipPathRender(r,h),e+1<i.length','await window.EPCComposition.renderNative(r,h),await window.__EPC_COMPOSITION.own(h,r,c=>window.EPCComposition.renderNative(r,c)),e+1<i.length'],
- ['(t===I.GLOSS||t===I.GILD||e.textureType)&&(e.globalCompositeOperation=`destination-out`,gr.contourClipPathRender(e,h),e.globalCompositeOperation=`source-over`)','window.__EPC_COMPOSITION.sync().mode===\'top\'&&await window.__EPC_COMPOSITION.erase(h,e,c=>window.EPCComposition.renderNative(e,c))']
+ 'src-CeiAY1Ls.js':[
+ ['let a=r.toDataURL();return r.width=0,r.height=0,r.remove(),a','let a=r.toDataURL();r.width=0,r.height=0,r.remove();return window.EPCLayerInk?await window.EPCLayerInk.rotatePolicy(e,a):a']
+ ],
+ 'PrintFileLayerManager-emMpUQft.js':[
+ // The original probe allocates the entire object's bounds at print DPI,
+ // even for one roll segment. Long images exceed the browser canvas limit;
+ // that lost context is then reused for the ink mask. Probe only the visible
+ // intersection, with the same pixel scale and object position. Print pixels,
+ // segment dimensions and craft settings are not changed by this check.
+ ['let t=Math.ceil(v),n=Math.ceil(y),r=a.getCanvas(t,n)','let epcRollOptimized=window.__EPC_PRINT_PIPELINE?.mode===`optimized`;if(!epcRollOptimized&&(v>32767||y>32767||v*y>268435456))throw Object.assign(Error(`图片超出原版打印生成范围，请在打印箭头中选择“超限图片优化算法”；未下发打印任务`),{photoHubPrintPipeline:true});let t=Math.ceil(epcRollOptimized?D:v),n=Math.ceil(epcRollOptimized?ee:y);if(t>32767||n>32767||t*n>268435456)throw Object.assign(Error(`当前打印段超过画布能力，未生成空数据；请检查打印段尺寸`),{photoHubPrintPipeline:true});let r=a.getCanvas(t,n)'],
+ ['c.translate(-h,-_),e.render(c)','c.translate(epcRollOptimized?-S:-h,epcRollOptimized?-w:-_),e.render(c)'],
+ ['let l=Math.max(0,-h),u=Math.max(0,-_),d=Math.min(s.width-l,D),f=Math.min(s.height-u,ee)','let l=epcRollOptimized?0:Math.max(0,-h),u=epcRollOptimized?0:Math.max(0,-_),d=Math.min(s.width-l,D),f=Math.min(s.height-u,ee)']
  ]
 };
 const moduleCache=new Map();
-async function patched(name){
- if(moduleCache.has(name))return moduleCache.get(name);
- const url=performance.getEntriesByType('resource').map(r=>r.name).find(u=>{try{const parsed=new URL(u);return parsed.origin===location.origin&&parsed.pathname.endsWith('/'+name);}catch{return false;}});
- if(!url||new URL(url).origin!==location.origin)throw Error('当前编辑器版本尚不支持工艺合成。');
- const response=await fetch(url,{cache:'force-cache'});if(!response.ok)throw Error('原版工艺模块读取失败');const source=await response.text(),hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(source)))].map(b=>b.toString(16).padStart(2,'0')).join('');
- if(hash!==expected[name])throw Error('原版工艺模块版本已变化，已停止接入以免计算错误。');
+function compile(name,source,url){
  let code=source;
  for(const[old,next]of patches[name]){if(code.split(old).length!==2)throw Error('原版工艺接口校验失败');code=code.replace(old,next);}
  if(name.startsWith('Print')){
-  const records=/await Z\.contourClipPathRenderCp\((\w+),(\w+),H\)/g;if([...code.matchAll(records)].length!==10)throw Error('原版墨路绘制顺序接口校验失败');code=code.replace(records,(s,o)=>'('+s+',window.__EPC_LAYER_INK?.record(H,'+o+'))');
-  const clone='t({canvas:p,workspace:n})';if(code.split(clone).length!==2)throw Error('原版墨路图层继承接口校验失败');code=code.replace(clone,'t({canvas:window.__EPC_LAYER_INK?.inherit(p)||p,workspace:n})');
-  const a='ae=W.toDataURL({format:`png`})';if(code.split(a).length!==3)throw Error('原版普通打印墨路接口校验失败');
-  const safe='ae=W.toDataURL({format:`png`}),oe.url_file_size=$(ae),W.dispose();let r=';if(code.split(safe).length!==2)throw Error('原版普通打印错误处理接口校验失败');
-  code=code.replace(safe,'try{ae=await(window.__EPC_LAYER_INK?.attachCanvas(W,W.toDataURL({format:`png`}),!o)??Promise.resolve(W.toDataURL({format:`png`})))}catch(error){W.dispose();t(error);return}oe.url_file_size=$(ae),W.dispose();let r=');
-  code=code.replace(a,'ae=await(window.__EPC_LAYER_INK?.attachCanvas(W,W.toDataURL({format:`png`}),!o)??Promise.resolve(W.toDataURL({format:`png`})))');
-  const b='v.originalHasContentColorRightList=x,j.infoPC(`getPrintImgRet =end====11111 =color`,l,f);let E=';if(code.split(b).length!==2)throw Error('原版复合打印墨路接口校验失败');code=code.replace(b,'v.originalHasContentColorRightList=x,j.infoPC(`getPrintImgRet =end====11111 =color`,l,f);let epcInkPolicy;try{epcInkPolicy=await window.__EPC_LAYER_INK?.policy(H,K,q)}catch(error){H.dispose();t(error);return}let E=');
-  const c='e({dataMaskURL:R,dataColorURL:D})';if(code.split(c).length!==2)throw Error('原版墨路输出接口校验失败');code=code.replace(c,'Promise.resolve(window.__EPC_LAYER_INK?.attach(D,epcInkPolicy)||D).then(dataColorURL=>e({dataMaskURL:R,dataColorURL}),t)');
+  const probeCatch='catch(e){return p.errorPc(`====checkColorRender: error detecting pixel====`,e),';
+  if(code.split(probeCatch).length!==2)throw Error('原版打印尺寸错误接口校验失败');
+  code=code.replace(probeCatch,'catch(e){if(e?.photoHubPrintPipeline)throw e;return p.errorPc(`====checkColorRender: error detecting pixel====`,e),');
+
+  const records=/await F\.contourClipPathRenderCp\((\w+),(\w+),K\)/g;if([...code.matchAll(records)].length!==10)throw Error('原版墨路绘制顺序接口校验失败');code=code.replace(records,(s,o)=>'('+s+',window.__EPC_LAYER_INK?.record(K,'+o+'))');
+  const clone='t({canvas:_,workspace:n})';if(code.split(clone).length!==2)throw Error('原版墨路图层继承接口校验失败');code=code.replace(clone,'t({canvas:window.__EPC_LAYER_INK?.inherit(_)||_,workspace:n})');
+  // Keep policy attached after the original pixel-check/encoding step. Only
+  // the color output is tagged; native white and varnish remain unchanged.
+  const ordinary='se=G.toDataURL({format:`png`}),ce.url_file_size=j(se),G.dispose()';
+  if(code.split(ordinary).length!==3)throw Error('原版普通打印墨路接口校验失败');
+  code=code.replace(ordinary,'se=G.toDataURL({format:`png`}),epcInkPolicy=!s?await window.__EPC_LAYER_INK?.policy(G):null,ce.url_file_size=j(se),G.dispose()');
+  code=code.replace(ordinary,'se=G.toDataURL({format:`png`});try{epcInkPolicy=!s?await window.__EPC_LAYER_INK?.policy(G):null}catch(error){G.dispose();t(error);return}ce.url_file_size=j(se),G.dispose()');
+  const declaration='var se=``,$=``,';if(code.split(declaration).length!==2)throw Error('原版普通打印状态接口校验失败');code=code.replace(declaration,'var epcInkPolicy,se=``,$=``,' );
+  const roll='T.addStatisticalEvent(c.dev_print_generate,E),$}return p.infoPC';if(code.split(roll).length!==2)throw Error('原版卷轴墨路输出接口校验失败');code=code.replace(roll,'T.addStatisticalEvent(c.dev_print_generate,E),!s&&epcInkPolicy?await window.__EPC_LAYER_INK.attach($,epcInkPolicy):$}return p.infoPC');
+  const flat='T.addStatisticalEvent(c.dev_print_generate,E),e($)})}async sharpenImage';if(code.split(flat).length!==2)throw Error('原版平面墨路输出接口校验失败');code=code.replace(flat,'T.addStatisticalEvent(c.dev_print_generate,E),Promise.resolve(!s&&epcInkPolicy?window.__EPC_LAYER_INK.attach($,epcInkPolicy):$).then(e,t)})}async sharpenImage');
+  const b='E.originalHasContentColorRightList=w,p.infoPC(`getPrintImgRet =end====11111 =color`,g,v);let N=';if(code.split(b).length!==2)throw Error('原版复合打印墨路接口校验失败');code=code.replace(b,'E.originalHasContentColorRightList=w,p.infoPC(`getPrintImgRet =end====11111 =color`,g,v);let epcInkPolicy;try{epcInkPolicy=await window.__EPC_LAYER_INK?.policy(K,Z,Q)}catch(error){t(error);return}let N=');
+  const out='e({dataMaskURL:V,dataColorURL:L})';if(code.split(out).length!==2)throw Error('原版墨路输出接口校验失败');code=code.replace(out,'Promise.resolve(window.__EPC_LAYER_INK?.attach(L,epcInkPolicy)||L).then(dataColorURL=>e({dataMaskURL:V,dataColorURL}),t)');
  }
  code=code.replace(/((?:from\s*|import\s*(?:\(\s*)?)\s*)(['"`])(\.\/?[^'"`]+)\2/g,(_,prefix,q,relative)=>prefix+q+new URL(relative,url).href+q).replaceAll('import.meta.url',JSON.stringify(url));
- if(name.startsWith('Print'))code+='\nexport {Ee as EPCPrint}; export async function EPCRender(obj,ctx,render){const cache=obj.objectCaching;obj.objectCaching=false;try{return await ve(obj,()=>render?render(ctx):Z.contourClipPathRenderCp(obj,ctx));}finally{obj.objectCaching=cache;}}';
- if(name.startsWith('Generating_img-'))code+='\nimport {ut as EPCOriginalProjectManager} from '+JSON.stringify(url)+'; $=EPCOriginalProjectManager;';
+ if(name.startsWith('printCanvasUtil'))code+='\nexport async function EPCRender(obj,ctx,render){const cache=obj.objectCaching;obj.objectCaching=false;try{return await Ce(obj,()=>render?render(ctx):Q.contourClipPathRenderCp(obj,ctx));}finally{obj.objectCaching=cache;}}';
+ return code;
+}
+async function patched(name){
+ if(moduleCache.has(name))return moduleCache.get(name);
+ const resources=performance.getEntriesByType('resource').map(r=>r.name);const sameAsset=u=>{try{const p=new URL(u);return p.origin===location.origin&&p.pathname.endsWith('/printCanvasUtil-BGHFT_Zz.js');}catch{return false;}};
+ const url=resources.find(u=>{try{const p=new URL(u);return p.origin===location.origin&&p.pathname.endsWith('/'+name);}catch{return false;}})||(()=>{const base=resources.find(sameAsset);return base?new URL(name,base).href:null;})();
+ if(!url||new URL(url).origin!==location.origin)throw Error('当前编辑器版本尚不支持工艺合成。');
+ const response=await fetch(url,{cache:'force-cache',signal:AbortSignal.timeout(20000)});if(!response.ok)throw Error('原版工艺模块读取失败');const source=await response.text(),hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(source)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+ if(hash!==expected[name])throw Error('原版工艺模块版本已变化，已停止接入以免计算错误。');
+ const code=compile(name,source,url);
  const blob=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));
- try{const original=await import(url),modified=await import(blob);const result={original,modified};if(name.startsWith('Generating_img-')){result.original={...original,A:original.$,R:original.ut,n:original.$};result.modified={...modified,A:modified.$,R:modified.ut,n:modified.$};if(modified.ut!==original.ut)throw Error('原版项目单例继承失败');}moduleCache.set(name,result);return result;}finally{URL.revokeObjectURL(blob);}
+ try{const original=await import(url),modified=await import(blob);const result={original,modified};moduleCache.set(name,result);return result;}finally{URL.revokeObjectURL(blob);}
+
 }
 async function prepare(){
- const print=await patched('PrintFileLayerManager-EDl4kp3F.js'),preview=await patched('Generating_img-Sr0X61KY.js'),printPackage=preview;
- window.EPCComposition.renderNative=print.modified.EPCRender;
+ const print=await patched('PrintFileLayerManager-emMpUQft.js'),preview=await patched('printCanvasUtil-BGHFT_Zz.js'),printPackage=await patched('src-CeiAY1Ls.js');
+ window.EPCComposition.renderNative=preview.modified.EPCRender;
  return {print,preview,printPackage,install(controller){
-  const packageProto=printPackage.original.n.prototype,packageMethods={};
-  const oldPrint=print.original.t.prototype.fillGrayImgDataUrl,oldGray=preview.original.A.prototype.get3dReliefGrayImg,oldPreview=preview.original.A.prototype.getCanvasGrayImgOf3dRelief,oldColor=print.original.t.prototype.getPrintImgRet,oldCustom=print.original.t.prototype.getPrintImgRetCus;
-  // These methods share the package module's cancellation state. Replace them
-  // together so an existing manager keeps its state, callbacks and file sink.
-  for(const name of Object.getOwnPropertyNames(printPackage.modified.n.prototype)){if(name==='constructor')continue;packageMethods[name]=Object.getOwnPropertyDescriptor(packageProto,name);Object.defineProperty(packageProto,name,Object.getOwnPropertyDescriptor(printPackage.modified.n.prototype,name));}
-  for(const method of ['getPrintImgRet','getPrintImgRetCus'])print.original.t.prototype[method]=async function(...args){await window.__EPC_LAYER_INK?.beforeExport();return print.modified.t.prototype[method].apply(this,args);};
-  print.original.t.prototype.fillGrayImgDataUrl=async function(...args){controller.snapshot();if(controller.sync().mode==='top')controller.validate();return print.modified.t.prototype.fillGrayImgDataUrl.apply(this,args);};
-  preview.original.A.prototype.get3dReliefGrayImg=preview.modified.A.prototype.get3dReliefGrayImg;
-  preview.original.A.prototype.getCanvasGrayImgOf3dRelief=async function(...args){controller.snapshot();if(controller.sync().mode==='top')controller.validate();try{const result=await preview.modified.A.prototype.getCanvasGrayImgOf3dRelief.apply(this,args);window.dispatchEvent(new CustomEvent('epc-composition-calculated',{detail:{success:true,revision:controller.revision}}));return result;}catch(e){window.dispatchEvent(new CustomEvent('epc-composition-calculated',{detail:{success:false,error:e.message}}));throw e;}};
-  return ()=>{for(const [name,descriptor]of Object.entries(packageMethods)){if(descriptor)Object.defineProperty(packageProto,name,descriptor);else delete packageProto[name];}print.original.t.prototype.fillGrayImgDataUrl=oldPrint;print.original.t.prototype.getPrintImgRet=oldColor;print.original.t.prototype.getPrintImgRetCus=oldCustom;preview.original.A.prototype.get3dReliefGrayImg=oldGray;preview.original.A.prototype.getCanvasGrayImgOf3dRelief=oldPreview;};
+  const restores=[];
+  function copy(original,modified){if(!original?.prototype||!modified?.prototype)throw Error('原版工艺类接口不匹配');const proto=original.prototype;for(const name of Object.getOwnPropertyNames(modified.prototype)){if(name==='constructor')continue;const old=Object.getOwnPropertyDescriptor(proto,name);Object.defineProperty(proto,name,Object.getOwnPropertyDescriptor(modified.prototype,name));restores.push(()=>{if(old)Object.defineProperty(proto,name,old);else delete proto[name];});}}
+  // All methods in each class share one lexical cancellation/cache state.
+  // Project/account managers are imported from the original shared modules.
+  copy(printPackage.original.n,printPackage.modified.n);
+  copy(preview.original.p,preview.modified.p);
+  copy(print.original.t,print.modified.t);
+  const proto=print.original.t.prototype,grayProto=preview.original.p.prototype;
+  for(const method of ['getPrintImgRet','getPrintImgRetCus']){const next=proto[method];proto[method]=async function(...args){const pipeline=window.__EPC_PRINT_PIPELINE;pipeline?.begin();try{await window.__EPC_LAYER_INK?.beforeExport();return await next.apply(this,args);}finally{pipeline?.end();}};}
+  const fill=proto.fillGrayImgDataUrl;proto.fillGrayImgDataUrl=async function(...args){controller.snapshot();if(controller.sync().mode==='top')controller.validate();return fill.apply(this,args);};
+  const calc=grayProto.getCanvasGrayImgOf3dRelief;grayProto.getCanvasGrayImgOf3dRelief=async function(...args){controller.snapshot();if(controller.sync().mode==='top')controller.validate();try{const result=await calc.apply(this,args);window.dispatchEvent(new CustomEvent('epc-composition-calculated',{detail:{success:true,revision:controller.revision}}));return result;}catch(e){window.dispatchEvent(new CustomEvent('epc-composition-calculated',{detail:{success:false,error:e.message}}));throw e;}};
+  return ()=>{for(const restore of restores.reverse())restore();};
  }};
 }
+
 window.EPCComposition.prepare=prepare;
 })();
 

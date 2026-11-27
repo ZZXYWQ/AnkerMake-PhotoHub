@@ -6,14 +6,14 @@
 #endif
 #define ProductVersion "0.8.7"
 #ifndef OutputBaseName
- #define OutputBaseName "ZZXLAB-AnkerMake-PhotoHub-0.8.7-Public-Beta-Win10-Win11-x64-Setup"
+ #define OutputBaseName "ZZXLAB-AnkerMake-PhotoHub-0.8.7-Branding1-Win10-Win11-x64-Setup"
 #endif
 
 [Setup]
 AppId={{AC6B44DD-D70F-4C29-B206-AFB9F3A0A7C8}
 AppName=ZZXLAB · AnkerMake PhotoHub
-AppVersion={#ProductVersion}
-AppVerName=ZZXLAB · AnkerMake PhotoHub {#ProductVersion} 公开测试版
+AppVersion={#ProductVersion}.1
+AppVerName=ZZXLAB · AnkerMake PhotoHub {#ProductVersion} Branding1 公开测试版
 AppPublisher=ZZXLAB
 DefaultDirName={localappdata}\ZZXLAB\AnkerMake PhotoHub
 DefaultGroupName=ZZXLAB
@@ -32,7 +32,7 @@ Compression=lzma2/fast
 SolidCompression=yes
 OutputDir={#OutputRoot}
 OutputBaseFilename={#OutputBaseName}
-VersionInfoVersion=0.8.7.0
+VersionInfoVersion=0.8.7.1
 VersionInfoCompany=ZZXLAB
 VersionInfoDescription=AnkerMake PhotoHub 插件 · 公开测试版安装程序
 CloseApplications=no

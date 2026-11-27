@@ -1,4 +1,6 @@
-﻿ZZXLAB · AnkerMake PhotoHub 0.8.7 公开测试版
+﻿ZZXLAB · AnkerMake PhotoHub 0.8.7 Branding1 公开测试版
+安装器文件版本：0.8.7.1；功能继承 LocalModesFix。
+品牌图标为黄色手写字与蓝色错位阴影 ZZXLAB。
 
 适用：Windows 10 / 11 x64；AnkerMake Studio 5.1.3，编辑器 1.25.04。
 系统兼容范围与原版编辑器适配版本是两回事；未验证的原版版本会停止安装。

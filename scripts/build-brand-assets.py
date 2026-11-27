@@ -1,25 +1,37 @@
-"""Render the exact ZZXLAB wordmark as Windows application/install assets."""
+"""Encode the approved handwritten ZZXLAB wordmark as Windows/install assets.
+
+The source artwork is checked in; this export only fits/encodes it and lays out
+installer labels. It never redraws the logo with an unrelated system font.
+"""
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 root = Path(__file__).resolve().parents[1] / 'installer' / 'branding'
-root.mkdir(exist_ok=True)
-font_path = 'C:/Windows/Fonts/seguisb.ttf'
-font = ImageFont.truetype(font_path, 148)
-image = Image.new('RGBA', (512, 512))
-draw = ImageDraw.Draw(image)
-draw.rounded_rectangle((4, 4, 508, 508), radius=108, fill='#161c19')
-for text, y in [('ZZX', 65), ('LAB', 239)]:
-    box = draw.textbbox((0, 0), text, font=font)
-    draw.text(((512 - (box[2]-box[0]))/2 - box[0], y - box[1]), text, font=font, fill='#ffffff')
-draw.rounded_rectangle((109, 424, 403, 437), radius=6, fill='#33bf5a')
-image.save(root / 'ZZXLAB.png')
-image.save(root / 'ZZXLAB.ico', sizes=[(16,16),(20,20),(24,24),(32,32),(40,40),(48,48),(64,64),(128,128),(256,256)])
-small = image.resize((55,55),Image.Resampling.LANCZOS).convert('RGB');small.save(root / 'wizard-small.bmp')
-banner = Image.new('RGB',(164,314),'#161c19');d=ImageDraw.Draw(banner)
-for text,y in [('ZZX',40),('LAB',98)]:d.text((20,y),text,font=ImageFont.truetype(font_path,48),fill='white')
-d.rectangle((22,169,140,172),fill='#33bf5a')
-for text,y in [('AnkerMake',202),('PhotoHub',223),('0.8.7 PUBLIC BETA',280)]:d.text((22,y),text,font=ImageFont.truetype(font_path,13 if y<280 else 9),fill='white' if y<280 else '#66d584')
+source = Image.open(root / 'ZZXLAB-wordmark.png').convert('RGBA')
+if source.getchannel('A').getextrema() != (0, 255):
+    raise ValueError('Expected the approved transparent wordmark')
+art = source.crop(source.getbbox())
+
+def fit_wordmark(size, width_fraction=.93):
+    canvas = Image.new('RGBA', size)
+    scaled = art.copy()
+    scaled.thumbnail((round(size[0]*width_fraction), round(size[1]*width_fraction)), Image.Resampling.LANCZOS)
+    canvas.alpha_composite(scaled, ((size[0]-scaled.width)//2, (size[1]-scaled.height)//2))
+    return canvas
+
+icon = fit_wordmark((512, 512))
+icon.save(root / 'ZZXLAB.png')
+icon.save(root / 'ZZXLAB.ico', sizes=[(16,16),(20,20),(24,24),(32,32),(40,40),(48,48),(64,64),(128,128),(256,256)])
+small = Image.new('RGB', (55,55), '#101010')
+small.paste(fit_wordmark((55,55)), (0,0), fit_wordmark((55,55)))
+small.save(root / 'wizard-small.bmp')
+banner = Image.new('RGB', (164,314), '#101010')
+mark = fit_wordmark((164,110), .88)
+banner.paste(mark, (0,22), mark)
+draw = ImageDraw.Draw(banner)
+font = 'C:/Windows/Fonts/seguisb.ttf'
+for text,y,size,color in [('AnkerMake',170,14,'white'),('PhotoHub',194,18,'white'),('0.8.7 PUBLIC BETA',274,10,'#ffff00'),('BRANDING 1',292,9,'#00aaff')]:
+    draw.text((15,y),text,font=ImageFont.truetype(font,size),fill=color)
 banner.save(root / 'wizard.bmp')
-(root/'ZZXLAB.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect x="4" y="4" width="504" height="504" rx="108" fill="#161c19"/><g fill="white" font-family="Segoe UI, sans-serif" font-size="148" font-weight="600" text-anchor="middle"><text x="256" y="197">ZZX</text><text x="256" y="371">LAB</text></g><rect x="109" y="424" width="294" height="13" rx="6" fill="#33bf5a"/></svg>',encoding='utf8')
-print('Built ZZXLAB icon sizes, vector source and installer artwork')
+(root/'ZZXLAB.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><title>ZZXLAB handwritten yellow and cyan wordmark</title><image href="ZZXLAB.png" width="512" height="512"/></svg>\n',encoding='utf8')
+print('Encoded approved wordmark: PNG, ICO (9 sizes), SVG wrapper and wizard BMP assets')

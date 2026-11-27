@@ -1,0 +1,48 @@
+{
+  "revision": "0.8.7 Branding1 Public Beta",
+  "installerFileVersion": "0.8.7.1",
+  "functionalBase": "0.8.7 LocalModesFix",
+  "scope": "branding-only, expanded functional testing follows publication",
+  "iconSizes": [
+    [
+      16,
+      16
+    ],
+    [
+      20,
+      20
+    ],
+    [
+      24,
+      24
+    ],
+    [
+      32,
+      32
+    ],
+    [
+      40,
+      40
+    ],
+    [
+      48,
+      48
+    ],
+    [
+      64,
+      64
+    ],
+    [
+      128,
+      128
+    ],
+    [
+      256,
+      256
+    ]
+  ],
+  "transparentPNG": true,
+  "wordmarkSHA256": "b0f85929fe8bc09a574783b4f1c684c51d9ced6da0b6a15812ca96b8fdff8b3d",
+  "actualPrinting": false,
+  "previousFunctionalEvidence": "verification-0.8.7-localmodesfix.json"
+}

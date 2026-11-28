@@ -30,6 +30,5 @@
   "models": {
     "depth": "Depth Anything V2 Small / Apache-2.0",
     "strokes": "TEED / MIT"
-  },
-  "thanks": "RYAN"
+  }
 }

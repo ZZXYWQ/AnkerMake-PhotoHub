@@ -25,4 +25,4 @@
 
 验证细节和未覆盖情况见 [验证范围](https://github.com/ZZXYWQ/AnkerMake-PhotoHub/blob/main/docs/VERIFICATION-0.7.0.md)。额外旧版纯内存整链夹具尚未通过；不能把本次结果理解为所有打印模式或所有电脑的稳定性保证。
 
-**感谢 RYAN 提出的宝贵意见。** 欢迎通过 Issues 提供版本、复现步骤和脱敏日志，请勿上传账号令牌或私有设计。
+欢迎通过 Issues 提供版本、复现步骤和脱敏日志，请勿上传账号令牌或私有设计。

@@ -1,7 +1,7 @@
 ﻿param([Parameter(Mandatory=$true)][string]$Package,[Parameter(Mandatory=$true)][string]$PayloadRoot)
 $ErrorActionPreference='Stop'
 $file=Get-Item -LiteralPath $Package
-if($file.VersionInfo.FileVersion.Trim() -ne '0.8.7.1'){throw 'Unexpected setup version'}
+if($file.VersionInfo.FileVersion.Trim() -ne '0.8.7.2'){throw 'Unexpected setup version'}
 $bytes=[IO.File]::ReadAllBytes($file.FullName)
 if($bytes[0] -ne 77 -or $bytes[1] -ne 90 -or ![Text.Encoding]::ASCII.GetString($bytes).Contains('Inno Setup Setup Data')){throw 'Not a complete Inno Setup executable'}
 $spec=Get-Content -LiteralPath (Join-Path $PSScriptRoot '../manifest.json') -Raw -Encoding UTF8|ConvertFrom-Json

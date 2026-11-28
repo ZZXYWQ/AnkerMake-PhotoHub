@@ -1,12 +1,18 @@
 # AnkerMake PhotoHub 插件
 
-**0.8.7 公开测试版（Public Beta）** · Windows 10 / 11 x64
+**0.8.7.2 LongRollFix2 公开测试版（Public Beta）** · Windows 10 / 11 x64
 
-本次发布：**0.8.7 Branding1 公开测试版（功能继承 LocalModesFix）**，安装器文件版本 0.8.7.1。采用 ZZXLAB 单 EXE 中文安装向导，内置离线 AI 深度图和 AI 笔触纹路，两种 AI 方式二选一，另保留四种传统本机生成方式。下载 [本次安装包与校验清单](https://github.com/ZZXYWQ/AnkerMake-PhotoHub/releases/tag/v0.8.7-branding1-public-beta)。历史启动修复记录见 [StartupFix2 验证记录](docs/verification-0.7.0-startupfix2.json)。
+本次发布：**0.8.7 LongRollFix2 公开测试版（功能继承 LocalModesFix）**，安装器文件版本 0.8.7.2。采用 ZZXLAB 单 EXE 中文安装向导，内置离线 AI 深度图和 AI 笔触纹路，两种 AI 方式二选一，另保留四种传统本机生成方式。下载 [本次安装包与校验清单](https://github.com/ZZXYWQ/AnkerMake-PhotoHub/releases/tag/v0.8.7.2-longrollfix2-public-beta)。历史启动修复记录见 [StartupFix2 验证记录](docs/verification-0.7.0-startupfix2.json)。
 
 > **本项目所有公开版本均为测试版，可能存在较多 Bug。更新和问题修复不保证及时，也没有固定更新计划。请自行评估、备份设计，不要将测试通过理解为稳定版保证。**
 
 在 AnkerMake Studio 的原画布中编辑图片、导入 PSD 图层、识别及编辑轮廓，并为每个图层分别选择 C、M、Y、K 墨路。继续使用原软件的账号、工艺设置和打印流程。第三方社区插件，与 AnkerMake 官方无隶属或背书关系。
+
+## 本次长图修复与验证边界
+
+修正超限卷材包的分段物理高度，并在临时打印副本上将超长原图绘制范围限制到当前段，不缩小源图。真实约 7.45 米长图已完成 74 段生成与整体回拼；74 段均非空且无重复，回拼灰度相关度约 0.9983。另对首中末进行独立原生 RIP 验证。
+
+**正式宿主把 TAR 转换为最终机器数据的运行时观察尚未完成，未进行实物打印验收；不能据此认定长图条纹问题已彻底解决。** 请勿直接用整卷耗材验证。详细记录见 [长图修复验证范围](docs/verification-0.8.7.2.md)。
 
 ## 先确认版本
 
@@ -33,7 +39,7 @@ Windows 家庭版、专业版和企业版共用这一份 x64 安装包，所需 
 
 本次安装包文件名为：
 
-`ZZXLAB-AnkerMake-PhotoHub-0.8.7-Branding1-Win10-Win11-x64-Setup.exe`
+`ZZXLAB-AnkerMake-PhotoHub-0.8.7.2-LongRollFix2-Win10-Win11-x64-Setup.exe`
 
 1. 先等已有打印任务结束，保存设计并完全退出 AnkerMake Studio。
 2. 运行单个 EXE，按中文安装向导选择位置并安装；再次运行可覆盖升级。不需要另外安装 Python、Node.js、ComfyUI 或独立图片编辑器。

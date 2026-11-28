@@ -15,7 +15,13 @@ const patches={
  ['if(v||(y=``),y&&!e){',"if((window.__EPC_COMPOSITION.sync().mode==='top'||v)||(y=``),y&&!e&&window.__EPC_COMPOSITION.sync().mode!=='top'){"]
  ],
  'src-CeiAY1Ls.js':[
- ['let a=r.toDataURL();return r.width=0,r.height=0,r.remove(),a','let a=r.toDataURL();r.width=0,r.height=0,r.remove();return window.EPCLayerInk?await window.EPCLayerInk.rotatePolicy(e,a):a']
+ ['let a=r.toDataURL();return r.width=0,r.height=0,r.remove(),a','let a=r.toDataURL();r.width=0,r.height=0,r.remove();return window.EPCLayerInk?await window.EPCLayerInk.rotatePolicy(e,a):a'],
+ // Read the dimensions of the exact PNG bytes already written into the TAR.
+ // Keep physical packet geometry consistent with the segment raster. The
+ // extra rollSegmentSizes metadata alone cannot guarantee native layout.
+ ['C.print_file=d;let E=``;','C.print_file=d;let epcPacketImages=[],E=``;'],
+ ['if(w.append(r,o),C.dataUrl_fileSize=o.length/1024','if(w.append(r,o),T&&window.__EPC_PRINT_PIPELINE?.mode===`optimized`&&epcPacketImages.push(window.EPCRollPacket.imageSize(o)),C.dataUrl_fileSize=o.length/1024'],
+ ['let D=JSON.parse(JSON.stringify(i));D.printLayerData.forEach','let D=JSON.parse(JSON.stringify(i));if(T&&window.__EPC_PRINT_PIPELINE?.mode===`optimized`){if(!window.EPCRollPacket)throw Error(`卷材分段几何保护尚未加载，未生成打印包`);D=window.EPCRollPacket.normalize(D,epcPacketImages,{roll:true,mode:`optimized`});}D.printLayerData.forEach']
  ],
  'PrintFileLayerManager-emMpUQft.js':[
  // The original probe allocates the entire object's bounds at print DPI,
@@ -37,8 +43,8 @@ function compile(name,source,url){
   if(code.split(probeCatch).length!==2)throw Error('原版打印尺寸错误接口校验失败');
   code=code.replace(probeCatch,'catch(e){if(e?.photoHubPrintPipeline)throw e;return p.errorPc(`====checkColorRender: error detecting pixel====`,e),');
 
-  const records=/await F\.contourClipPathRenderCp\((\w+),(\w+),K\)/g;if([...code.matchAll(records)].length!==10)throw Error('原版墨路绘制顺序接口校验失败');code=code.replace(records,(s,o)=>'('+s+',window.__EPC_LAYER_INK?.record(K,'+o+'))');
-  const clone='t({canvas:_,workspace:n})';if(code.split(clone).length!==2)throw Error('原版墨路图层继承接口校验失败');code=code.replace(clone,'t({canvas:window.__EPC_LAYER_INK?.inherit(_)||_,workspace:n})');
+  const records=/await F\.contourClipPathRenderCp\((\w+),(\w+),K\)/g;if([...code.matchAll(records)].length!==10)throw Error('原版墨路绘制顺序接口校验失败');code=code.replace(records,(s,o,ctx)=>'(await window.EPCRollPacket.render('+o+','+ctx+',K,()=>F.contourClipPathRenderCp('+o+','+ctx+',K)),window.__EPC_LAYER_INK?.record(K,'+o+'))');
+  const clone='t({canvas:_,workspace:n})';if(code.split(clone).length!==2)throw Error('原版墨路图层继承接口校验失败');code=code.replace(clone,'t({canvas:window.EPCRollPacket.prepareCanvas(window.__EPC_LAYER_INK?.inherit(_)||_),workspace:n})');
   // Keep policy attached after the original pixel-check/encoding step. Only
   // the color output is tagged; native white and varnish remain unchanged.
   const ordinary='se=G.toDataURL({format:`png`}),ce.url_file_size=j(se),G.dispose()';

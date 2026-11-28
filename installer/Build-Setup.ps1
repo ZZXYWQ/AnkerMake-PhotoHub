@@ -1,8 +1,8 @@
-﻿param([string]$PayloadRoot,[string]$Manifest,[string]$Output,[string]$BuildRoot,[string]$Compiler=$env:INNO_ISCC)
+param([string]$PayloadRoot,[string]$Manifest,[string]$Output,[string]$BuildRoot,[string]$Compiler=$env:INNO_ISCC)
 $ErrorActionPreference='Stop'
 if(!$PayloadRoot){$PayloadRoot=Join-Path $PSScriptRoot '../payload'}
 if(!$Manifest){$Manifest=Join-Path $PSScriptRoot '../manifest.json'}
-if(!$Output){$Output=Join-Path $PSScriptRoot '../dist/ZZXLAB-AnkerMake-PhotoHub-0.8.7.2-LongRollFix2-Win10-Win11-x64-Setup.exe'}
+if(!$Output){$Output=Join-Path $PSScriptRoot '../dist/ZZXLAB-AnkerMake-PhotoHub-0.8.7.3-LongRollFix3-Win10-Win11-x64-Setup.exe'}
 if(!$Compiler){$found=Get-Command ISCC.exe -ErrorAction SilentlyContinue;if($found){$Compiler=$found.Source}}
 if(!$Compiler){throw 'Set INNO_ISCC to the installed Inno Setup compiler. End users do not need the compiler.'}
 $spec=Get-Content -LiteralPath $Manifest -Raw -Encoding UTF8|ConvertFrom-Json

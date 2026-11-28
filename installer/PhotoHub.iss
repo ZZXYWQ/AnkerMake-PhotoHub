@@ -1,4 +1,4 @@
-﻿#ifndef PayloadRoot
+#ifndef PayloadRoot
   #error Supply /DPayloadRoot=...
 #endif
 #ifndef OutputRoot
@@ -6,13 +6,13 @@
 #endif
 #define ProductVersion "0.8.7"
 #ifndef ProductRevision
- #define ProductRevision "2"
+ #define ProductRevision "3"
 #endif
 #ifndef BuildLabel
- #define BuildLabel "LongRollFix2"
+ #define BuildLabel "LongRollFix3"
 #endif
 #ifndef OutputBaseName
- #define OutputBaseName "ZZXLAB-AnkerMake-PhotoHub-0.8.7.2-LongRollFix2-Win10-Win11-x64-Setup"
+ #define OutputBaseName "ZZXLAB-AnkerMake-PhotoHub-0.8.7.3-LongRollFix3-Win10-Win11-x64-Setup"
 #endif
 
 [Setup]

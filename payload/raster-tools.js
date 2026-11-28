@@ -509,7 +509,7 @@ function create({api,host,finish,status,craftNotifier}){
 window.EPCLocalRelief={create};
 })();
 
-/* Normalize one exported roll packet; never resize pixels or edit the project. */
+/* Validate packet pixels and bound drawing; preserve the device job contract. */
 (()=>{'use strict';
 function imageSize(bytes){
  if(!(bytes instanceof Uint8Array)||bytes.length<24||![137,80,78,71,13,10,26,10].every((v,i)=>bytes[i]===v))throw Error('卷材打印图片不是有效 PNG；未生成打印包');
@@ -525,17 +525,10 @@ function normalize(config,images,{roll=false,mode='native'}={}){
  if(!Number.isInteger(widthPx)||!Number.isInteger(heightPx)||widthPx<=0||heightPx<=0||widthPx>32767||heightPx>32767)throw Error('卷材当前分段像素尺寸无效');
  if(!Number.isFinite(config.format_size_w)||config.format_size_w<=0||Math.abs(config.format_size_w*dpi/25.4-widthPx)>1)throw Error('卷材横向尺寸与分段像素不一致；未交换横纵尺寸');
  if(!images.length||images.some(i=>!i.width||!i.height||i.width>widthPx+1||i.height>heightPx+1))throw Error('卷材图片与分段尺寸不一致；未生成拉伸数据');
- const out=structuredClone(config),heightMm=heightPx*25.4/dpi;
- out.format_size_h=heightMm;out.format_size_h_non=heightMm;
- if(out.effectImgData){
-  // The native layout converter also consumes these fields. A full-canvas
-  // height here would describe ~7.45 m while the PNG contains only 1200 rows.
-  out.effectImgData.effectivePixelsH=heightMm;
-  out.effectImgData.effectivePixelsHPx=heightPx;
-  out.effectImgData.positionY=0;out.effectImgData.positionYPx=0;
- }
- out.photoHubRollPacket={version:1,index,pixels:[widthPx,heightPx],dpi,heightMm,fullFormatMm:[config.format_size_w,config.format_size_h]};
- return out;
+ // These are whole-job fields in the device protocol. Keep them byte-for-byte
+ // semantically unchanged; a standalone desktop RIP fixture is not evidence
+ // that the device expects segment-local heights here.
+ return config;
 }
 // Clip the draw rectangle before handing it to Canvas2D. A 7.45 m image
 // becomes an ~88k-pixel destination at print resolution; submitting that
@@ -563,6 +556,12 @@ async function render(obj,ctx,canvas,draw){
  try{return await draw();}finally{if(own)Object.defineProperty(ctx,'drawImage',own);else delete ctx.drawImage;}
 }
 const preparedImages=new WeakSet();
+function order(cuts,sizes){
+ if(!Array.isArray(cuts)||!cuts.length||cuts.some(c=>!Number.isFinite(c.bgHeightCutTop)||!Number.isFinite(c.bgCutHeight)||c.bgCutHeight<=0))throw Error('卷材分段列表无效');
+ if(sizes&&(!Array.isArray(sizes)||sizes.length!==cuts.length))throw Error('卷材分段与像素尺寸数量不一致');
+ const pairs=cuts.map((cut,i)=>({cut:{...cut},size:sizes?{...sizes[i]}:null})).sort((a,b)=>b.cut.bgHeightCutTop-a.cut.bgHeightCutTop);
+ return {cuts:pairs.map(p=>p.cut),sizes:sizes?pairs.map(p=>p.size):undefined};
+}
 function prepareCanvas(canvas){
  const visit=obj=>{
   if(obj?.type==='image'&&Math.max(obj.pixelWidth||obj.width||0,obj.pixelHeight||obj.height||0)>30000&&!preparedImages.has(obj)&&typeof obj._renderFill==='function'){
@@ -578,7 +577,7 @@ function prepareCanvas(canvas){
  };
  canvas.getObjects().forEach(visit);return canvas;
 }
-window.EPCRollPacket={imageSize,normalize,boundedArgs,render,prepareCanvas};
+window.EPCRollPacket={imageSize,normalize,boundedArgs,render,prepareCanvas,order};
 })();
 
 /* Native split-print menu: choose data generation only, never replace relief. */

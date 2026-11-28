@@ -1,6 +1,6 @@
 # 从源码构建 Windows 安装包
 
-版本：**AnkerMake PhotoHub 0.8.7 公开测试版**，安装器文件版本 0.8.7.2。
+版本：**AnkerMake PhotoHub 0.8.7 公开测试版**，安装器文件版本 0.8.7.3。
 
 构建工具：Windows x64、PowerShell、Node.js 20+、Python 3.12 x64、Zig 0.17.0 和 Inno Setup 6.7.4。安装用户无需这些开发工具。
 
@@ -14,7 +14,7 @@ $env:PH_STROKE_MODEL_ROOT = 'D:/PhotoHub-build/models/strokes'
 .\scripts\Build-Release.ps1 -WorkRoot D:/PhotoHub-build/work -OutputRoot D:/PhotoHub-build/output
 ```
 
-脚本创建隔离 Python 环境，安装 requirements-build.txt，执行 npm 锁文件安装、网页和原生 DLL 构建、PyInstaller 打包与 Inno Setup 安装器构建。最终输出 ZZXLAB-AnkerMake-PhotoHub-0.8.7.2-LongRollFix2-Win10-Win11-x64-Setup.exe 及 SHA256。默认不会安装、启动宿主或打印。
+脚本创建隔离 Python 环境，安装 requirements-build.txt，执行 npm 锁文件安装、网页和原生 DLL 构建、PyInstaller 打包与 Inno Setup 安装器构建。最终输出 ZZXLAB-AnkerMake-PhotoHub-0.8.7.3-LongRollFix3-Win10-Win11-x64-Setup.exe 及 SHA256。默认不会安装、启动宿主或打印。
 
 installer/Test-Package.ps1 检查包结构及模型哈希；installer/Test-WizardInstaller.ps1 通过真实 EXE 在隔离夹具中验证安装、文件一致性、快捷方式、卸载注册及原版恢复。需在未安装正式产品时运行隔离测试，避免影响同一 AppId 的卸载注册。
 

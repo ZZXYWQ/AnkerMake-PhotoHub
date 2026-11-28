@@ -1,4 +1,4 @@
-﻿param([string]$Python='python',[string]$Zig=$env:ZIG_EXE,[string]$OutputRoot,[string]$WorkRoot,[string]$BuildPython,[string]$DepthModelRoot=$env:PH_DEPTH_MODEL_ROOT,[string]$StrokeModelRoot=$env:PH_STROKE_MODEL_ROOT)
+param([string]$Python='python',[string]$Zig=$env:ZIG_EXE,[string]$OutputRoot,[string]$WorkRoot,[string]$BuildPython,[string]$DepthModelRoot=$env:PH_DEPTH_MODEL_ROOT,[string]$StrokeModelRoot=$env:PH_STROKE_MODEL_ROOT)
 $ErrorActionPreference='Stop'
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if(!$OutputRoot){$OutputRoot=Join-Path $projectRoot 'dist'}
@@ -58,7 +58,7 @@ try {
     $env:PH_BRIDGE_EXE=Join-Path $OutputRoot 'EufyPhotoCraftBridge.exe'
     & node scripts/stage.cjs
     if($LASTEXITCODE){throw 'Payload staging failed'}
-    $package=Join-Path $OutputRoot 'ZZXLAB-AnkerMake-PhotoHub-0.8.7.2-LongRollFix2-Win10-Win11-x64-Setup.exe'
+    $package=Join-Path $OutputRoot 'ZZXLAB-AnkerMake-PhotoHub-0.8.7.3-LongRollFix3-Win10-Win11-x64-Setup.exe'
     & "$PSScriptRoot/../installer/Build-Setup.ps1" -PayloadRoot $stageRoot -Manifest "$projectRoot/manifest.json" -Output $package -BuildRoot (Join-Path $WorkRoot 'setup')
     & "$PSScriptRoot/../installer/Test-Package.ps1" -Package $package -PayloadRoot $stageRoot
     $hash=(Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLower()

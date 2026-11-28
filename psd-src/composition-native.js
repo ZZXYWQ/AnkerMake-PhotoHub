@@ -15,10 +15,11 @@ const patches={
  ['if(v||(y=``),y&&!e){',"if((window.__EPC_COMPOSITION.sync().mode==='top'||v)||(y=``),y&&!e&&window.__EPC_COMPOSITION.sync().mode!=='top'){"]
  ],
  'src-CeiAY1Ls.js':[
+ ['o.reverse(),t.rollSegmentSizes&&t.rollSegmentSizes.reverse();','const epcRollOrder=window.EPCRollPacket.order(o,t.rollSegmentSizes);o=epcRollOrder.cuts;if(epcRollOrder.sizes)t.rollSegmentSizes=epcRollOrder.sizes;'],
  ['let a=r.toDataURL();return r.width=0,r.height=0,r.remove(),a','let a=r.toDataURL();r.width=0,r.height=0,r.remove();return window.EPCLayerInk?await window.EPCLayerInk.rotatePolicy(e,a):a'],
  // Read the dimensions of the exact PNG bytes already written into the TAR.
- // Keep physical packet geometry consistent with the segment raster. The
- // extra rollSegmentSizes metadata alone cannot guarantee native layout.
+ // Validate segment rasters without rewriting whole-job device geometry.
+ // A desktop RIP fixture does not establish the device protocol contract.
  ['C.print_file=d;let E=``;','C.print_file=d;let epcPacketImages=[],E=``;'],
  ['if(w.append(r,o),C.dataUrl_fileSize=o.length/1024','if(w.append(r,o),T&&window.__EPC_PRINT_PIPELINE?.mode===`optimized`&&epcPacketImages.push(window.EPCRollPacket.imageSize(o)),C.dataUrl_fileSize=o.length/1024'],
  ['let D=JSON.parse(JSON.stringify(i));D.printLayerData.forEach','let D=JSON.parse(JSON.stringify(i));if(T&&window.__EPC_PRINT_PIPELINE?.mode===`optimized`){if(!window.EPCRollPacket)throw Error(`卷材分段几何保护尚未加载，未生成打印包`);D=window.EPCRollPacket.normalize(D,epcPacketImages,{roll:true,mode:`optimized`});}D.printLayerData.forEach']

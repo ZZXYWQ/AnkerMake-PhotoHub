@@ -7,6 +7,7 @@ if(typeof MutationObserver==='function')new MutationObserver(()=>{if(document.bo
 function installScene(prototype,engine){
  if(!prototype||typeof prototype.getTextureGeometry!=='function')throw Error('原版浮雕预览场景接口不匹配');
  window.EPCReliefTiles?.install(prototype,engine);
+ window.EPCFlatPreview?.install(prototype);
  if(prototype.__photoHubBoundedScene)return true;
  const original=prototype.getTextureGeometry;
  prototype.getTextureGeometry=function(image,options){

@@ -5,6 +5,7 @@
  [string]$HostRoot,
  [string]$EditorRoot,
  [string]$SupportRoot,
+ [string]$DataRoot,
  [string]$ShortcutPath
 )
 $ErrorActionPreference='Stop'
@@ -39,9 +40,23 @@ try{
  $operation=if($Action -match 'Uninstall'){'Uninstall'}else{'Install'}
  $arguments=@{Action=$operation;HostRoot=$HostRoot;EditorRoot=$EditorRoot;PayloadRoot=(Join-Path $PackageRoot 'payload');Manifest=(Join-Path $PackageRoot 'manifest.json')}
  if($SupportRoot){$arguments.SupportRoot=$SupportRoot}
+ if($DataRoot -and $operation -eq 'Install'){$arguments.DataRoot=$DataRoot}
  if($ShortcutPath){$arguments.ShortcutPath=$ShortcutPath}
  $icon=Join-Path $ProductRoot 'ZZXLAB.ico'
  if(!(Test-Path -LiteralPath $icon)){$icon=Join-Path $PackageRoot 'ZZXLAB.ico'}
+ $brandPath=Join-Path $PackageRoot 'brand-icon.json'
+ if(!(Test-Path -LiteralPath $brandPath)){$brandPath=Join-Path $PackageRoot 'branding/brand-icon.json'}
+ if(Test-Path -LiteralPath $brandPath){
+  $brand=Get-Content -LiteralPath $brandPath -Raw -Encoding UTF8|ConvertFrom-Json
+  if([string]$brand.file -notmatch '^ZZXlab-[0-9a-f]{12}\.ico$' -or [string]$brand.sha256 -notmatch '^[0-9a-f]{64}$'){throw '插件图标清单无效。'}
+  $icon=Join-Path $ProductRoot ([string]$brand.file)
+  if(!(Test-Path -LiteralPath $icon)){$icon=Join-Path ([IO.Path]::GetDirectoryName($brandPath)) ([string]$brand.file)}
+  if(!(Test-Path -LiteralPath $icon)){throw '插件图标文件缺失。'}
+  $iconStream=$null;$iconSha=$null
+  try{$iconStream=[IO.File]::OpenRead($icon);$iconSha=[Security.Cryptography.SHA256]::Create();$iconDigest=[BitConverter]::ToString($iconSha.ComputeHash($iconStream)).Replace('-','').ToLowerInvariant()}
+  finally{if($iconSha){$iconSha.Dispose()};if($iconStream){$iconStream.Dispose()}}
+  if($iconDigest -ne [string]$brand.sha256){throw '插件图标校验失败。'}
+ }
  if($operation -eq 'Install' -and (Test-Path -LiteralPath $icon)){$arguments.IconPath=$icon}
  if($Action.StartsWith('Check')){$arguments.DryRun=$true}
  # Use a child process: the transaction script exits explicitly after each action.

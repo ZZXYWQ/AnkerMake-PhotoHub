@@ -57,6 +57,7 @@
  ui=window.EPCNativeUI.install({actions});
  window.EPCPanGuard?.install({editor});
  window.EPCFullResolution?.install(host);
+ window.EPCFlatPreview?.start({api,host,status});
  for(const id of ['layer-form','new-form','psd-form','contour-form','adjust-form','blur-form','levels-form','curves-form','feather-form','tools','help'])actions[id]=()=>ui.showSide(id);
  window.EPCContextMenu.install({actions,items:()=>{
   const entries=[['new-form','新建图片…'],['psd-form','导入 PSD（保留图层）…']];
@@ -75,6 +76,8 @@
  }
  boot().catch(error=>{window.__EPC_UI=false;status('PhotoHub 初始化失败：'+error.message);});
 })();
+
+
 
 
 

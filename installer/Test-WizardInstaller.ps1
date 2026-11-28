@@ -41,7 +41,8 @@ foreach($file in Get-ChildItem -LiteralPath $PayloadRoot -Recurse -File){
  $checked++
 }
 $link=(New-Object -ComObject WScript.Shell).CreateShortcut($shortcut)
-if(!$link.IconLocation.StartsWith((Join-Path $product 'ZZXLAB.ico'),[StringComparison]::OrdinalIgnoreCase)){throw 'Desktop entry is missing ZZXLAB branding'}
+$brand=Get-Content -LiteralPath (Join-Path $product 'brand-icon.json') -Raw -Encoding UTF8|ConvertFrom-Json
+if(!$link.IconLocation.StartsWith((Join-Path $product $brand.file),[StringComparison]::OrdinalIgnoreCase)){throw 'Desktop entry is missing ZZXlab original-logo branding'}
 $menu=Join-Path ([Environment]::GetFolderPath('Programs')) $group
 if(!(Test-Path -LiteralPath (Join-Path $menu 'AnkerMake + PhotoHub.lnk'))){throw 'Start menu entry missing'}
 $uninstaller=Join-Path $product 'unins000.exe'

@@ -1,15 +1,13 @@
-# ZZXLAB 品牌资源
+# ZZXlab 品牌资源
 
-Branding1 使用用户提供的黄色手写字、蓝色错位阴影参考重绘，保留单行签名字标。参考源文件由用户保留，不作为软件功能测试素材。
+当前版本直接采用用户提供的原始 logo，字样为 **ZZXlab**：ZZX 大写，lab 小写，b 必须小写。保留原始黄色手写字与蓝色阴影，不重新生成字形。
 
-本次使用内置图像生成工具，提示要求为：按用户参考重绘 ZZXLAB，黄色手写笔画、蓝色向右上偏移副本、透明背景、完整单行字标；不使用原来的 ZZX/LAB 两行系统字体图标。
+- 原始文件：用户提供的 ZZXlab.png，1004×255 RGBA。
+- 原图 SHA256：7641d4b0cdd826d52b53de110bdf48618632c21cd998ea8709211087a5d6c1c4。
+- installer/branding/ZZXLAB-wordmark.png 与该原图逐字节一致；资源文件名保留历史兼容命名。
+- scripts/build-brand-assets.py 只做尺寸适配及 PNG / ICO / BMP 封装，不重绘文字。
+- Windows ICO 提供 16、20、24、32、40、48、64、128、256 像素尺寸。
+- brand-icon.json 记录图标文件名与 SHA256。快捷方式、开始菜单、卸载入口使用带内容哈希的图标文件名，避免沿用旧路径的 Windows 图标缓存。
+- GitHub README 使用同一份原始字标资源。安装向导、EXE、桌面快捷方式和卸载项均引用由原图封装的资源。
 
-- installer/branding/ZZXLAB-wordmark.png：生成字标源图。
-- ZZXLAB.png：512 像素透明应用图标。
-- ZZXLAB.ico：16、20、24、32、40、48、64、128、256 像素图标。
-- ZZXLAB.svg：引用 PNG 的 SVG 包装，不是手工矢量化路径。
-- wizard.bmp / wizard-small.bmp：安装向导品牌资源。
-
-`scripts/build-brand-assets.py` 仅按源图比例导出图标与向导布局，不用系统字体重画字标。手写六字符在 16 像素时可读性有限，保留完整品牌形式。
-
-插件功能版本 0.8.7，Branding1 安装器文件版本 0.8.7.1，所有版本均为公开测试版。
+全部为测试版；品牌资源更新不改变原版主程序或打印流程。

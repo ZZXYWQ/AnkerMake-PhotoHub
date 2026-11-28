@@ -155,9 +155,9 @@ if ($oldState) {
         $oldByPath[[string]$item.path] = $item
     }
     if (($oldState.PSObject.Properties.Name -contains 'shortcut') -and $oldState.shortcut) {
-        $expectedShortcut=if($ShortcutPath){[IO.Path]::GetFullPath($ShortcutPath)}else{Join-Path ([Environment]::GetFolderPath('Desktop')) 'eufyMake + PhotoCraft.lnk'}
-        $newBrandShortcut=Join-Path ([Environment]::GetFolderPath('Desktop')) 'eufyMake + PhotoHub.lnk'
-        if([IO.Path]::GetFullPath([string]$oldState.shortcut.path) -ne $expectedShortcut -and ($ShortcutPath -or [IO.Path]::GetFullPath([string]$oldState.shortcut.path) -ne $newBrandShortcut)){throw 'Unexpected shortcut location in installation state; specify its original ShortcutPath explicitly.'}
+        $desktopRoot=[Environment]::GetFolderPath('Desktop')
+        $allowedShortcutPaths=if($ShortcutPath){@([IO.Path]::GetFullPath($ShortcutPath))}else{@('eufyMake + PhotoCraft.lnk','eufyMake + PhotoHub.lnk','AnkerMake + PhotoHub.lnk')|ForEach-Object {Join-Path $desktopRoot $_}}
+        if([IO.Path]::GetFullPath([string]$oldState.shortcut.path) -notin $allowedShortcutPaths){throw 'Unexpected shortcut location in installation state; specify its original ShortcutPath explicitly.'}
         if (!$supportOwnedByAnotherEditor -and (Test-Path -LiteralPath $oldState.shortcut.path) -and (Hash $oldState.shortcut.path) -ne $oldState.shortcut.hash) { throw 'Desktop shortcut changed; refusing overwrite.' }
     }
 }
@@ -391,11 +391,11 @@ for($windowAttempt=0;$windowAttempt -lt 40;$windowAttempt++){
         }
         if ($requestedShortcut) { $shortcutPath=[IO.Path]::GetFullPath($requestedShortcut) }
         elseif ($oldState -and ($oldState.PSObject.Properties.Name -contains 'shortcut') -and $oldState.shortcut) { $shortcutPath=[string]$oldState.shortcut.path }
-        else { $shortcutPath=Join-Path ([Environment]::GetFolderPath('Desktop')) 'eufyMake + PhotoHub.lnk' }
-        if([IO.Path]::GetFileName($shortcutPath) -eq 'eufyMake + PhotoCraft.lnk'){
+        else { $shortcutPath=Join-Path ([Environment]::GetFolderPath('Desktop')) 'AnkerMake + PhotoHub.lnk' }
+        if([IO.Path]::GetFileName($shortcutPath) -in @('eufyMake + PhotoCraft.lnk','eufyMake + PhotoHub.lnk')){
             $retiredShortcut=$shortcutPath
             if(Test-Path -LiteralPath $retiredShortcut){$retiredShortcutBytes=[IO.File]::ReadAllBytes($retiredShortcut)}
-            $shortcutPath=Join-Path ([IO.Path]::GetDirectoryName($shortcutPath)) 'eufyMake + PhotoHub.lnk'
+            $shortcutPath=Join-Path ([IO.Path]::GetDirectoryName($shortcutPath)) 'AnkerMake + PhotoHub.lnk'
         }
         if ((Test-Path -LiteralPath $shortcutPath) -and !($oldState -and ($oldState.PSObject.Properties.Name -contains 'shortcut') -and $oldState.shortcut -and $oldState.shortcut.path -eq $shortcutPath)) {
             $existingLink=(New-Object -ComObject WScript.Shell).CreateShortcut($shortcutPath)

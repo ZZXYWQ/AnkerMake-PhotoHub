@@ -5,24 +5,28 @@
   #error Supply /DOutputRoot=...
 #endif
 #define ProductVersion "0.8.7"
+#include "branding\brand-assets.iss"
 #ifndef ProductRevision
- #define ProductRevision "3"
+ #define ProductRevision "4"
 #endif
 #ifndef BuildLabel
- #define BuildLabel "LongRollFix3"
+ #define BuildLabel "FlatPreviewFix"
 #endif
 #ifndef OutputBaseName
- #define OutputBaseName "ZZXLAB-AnkerMake-PhotoHub-0.8.7.3-LongRollFix3-Win10-Win11-x64-Setup"
+ #define OutputBaseName "ZZXlab-AnkerMake-PhotoHub-0.8.7.4-FlatPreviewFix-Win10-Win11-x64-Setup"
+#endif
+#ifndef ReleaseNoteFile
+ #define ReleaseNoteFile "release-note.txt"
 #endif
 
 [Setup]
 AppId={{AC6B44DD-D70F-4C29-B206-AFB9F3A0A7C8}
-AppName=ZZXLAB · AnkerMake PhotoHub
+AppName=ZZXlab · AnkerMake PhotoHub
 AppVersion={#ProductVersion}.{#ProductRevision}
-AppVerName=ZZXLAB · AnkerMake PhotoHub {#ProductVersion} {#BuildLabel} 公开测试版
-AppPublisher=ZZXLAB
+AppVerName=ZZXlab · AnkerMake PhotoHub {#ProductVersion} {#BuildLabel} 公开测试版
+AppPublisher=ZZXlab
 DefaultDirName={localappdata}\ZZXLAB\AnkerMake PhotoHub
-DefaultGroupName=ZZXLAB
+DefaultGroupName=ZZXlab
 AllowNoIcons=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64os
@@ -32,20 +36,20 @@ WizardStyle=modern
 WizardSizePercent=110
 WizardImageFile=branding\wizard.bmp
 WizardSmallImageFile=branding\wizard-small.bmp
-SetupIconFile=branding\ZZXLAB.ico
-UninstallDisplayIcon={app}\ZZXLAB.ico
+SetupIconFile=branding\{#BrandIconName}
+UninstallDisplayIcon={app}\{#BrandIconName}
 Compression=lzma2/fast
 SolidCompression=yes
 OutputDir={#OutputRoot}
 OutputBaseFilename={#OutputBaseName}
 VersionInfoVersion={#ProductVersion}.{#ProductRevision}
-VersionInfoCompany=ZZXLAB
+VersionInfoCompany=ZZXlab
 VersionInfoDescription=AnkerMake PhotoHub 插件 · 公开测试版安装程序
 CloseApplications=no
 RestartApplications=no
 DisableWelcomePage=no
 DisableProgramGroupPage=no
-InfoBeforeFile=release-note.txt
+InfoBeforeFile={#ReleaseNoteFile}
 UninstallLogMode=append
 SetupLogging=yes
 UsePreviousAppDir=yes
@@ -60,13 +64,15 @@ Source: "Apply-Integration.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Launch-PhotoHub.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\manifest.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "branding\ZZXLAB.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "branding\{#BrandIconName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "branding\brand-icon.json"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\docs\新手安装与升级教程.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\docs\FEATURES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PayloadRoot}\*"; DestDir: "{tmp}\payload"; Flags: dontcopy recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\AnkerMake + PhotoHub"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ""{app}\Launch-PhotoHub.ps1"""; WorkingDir: "{app}"; IconFilename: "{app}\ZZXLAB.ico"
-Name: "{group}\卸载 PhotoHub"; Filename: "{uninstallexe}"; IconFilename: "{app}\ZZXLAB.ico"
+Name: "{group}\AnkerMake + PhotoHub"; Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ""{app}\Launch-PhotoHub.ps1"""; WorkingDir: "{app}"; IconFilename: "{app}\{#BrandIconName}"
+Name: "{group}\卸载 PhotoHub"; Filename: "{uninstallexe}"; IconFilename: "{app}\{#BrandIconName}"
 
 [UninstallDelete]
 Type: files; Name: "{app}\installation.json"
@@ -88,6 +94,7 @@ begin
  if Action = 'CheckInstall' then Result := Result + ' -HostRoot ' + Quote(HostPage.Values[0]);
  if ExpandConstant('{param:EDITORROOT|}') <> '' then Result := Result + ' -EditorRoot ' + Quote(ExpandConstant('{param:EDITORROOT|}'));
  if ExpandConstant('{param:SUPPORTROOT|}') <> '' then Result := Result + ' -SupportRoot ' + Quote(ExpandConstant('{param:SUPPORTROOT|}'));
+ if ExpandConstant('{param:DATAROOT|}') <> '' then Result := Result + ' -DataRoot ' + Quote(ExpandConstant('{param:DATAROOT|}'));
  if ExpandConstant('{param:SHORTCUTPATH|}') <> '' then Result := Result + ' -ShortcutPath ' + Quote(ExpandConstant('{param:SHORTCUTPATH|}'));
 end;
 
@@ -100,7 +107,7 @@ begin
  DefaultHost := ExpandConstant('{param:HOSTROOT|}');
  if DefaultHost = '' then DefaultHost := ExpandConstant('{localappdata}\eufyMake Studio');
  HostPage.Values[0] := DefaultHost;
- WizardForm.WelcomeLabel2.Caption := '此向导将安装 ZZXLAB 的 AnkerMake PhotoHub 插件。' + #13#10#13#10 +
+ WizardForm.WelcomeLabel2.Caption := '此向导将安装 ZZXlab 的 AnkerMake PhotoHub 插件。' + #13#10#13#10 +
   '内含 AI 深度图、AI 笔触纹路模型及离线运行组件。' + #13#10 +
   '安装后无需单独配置 Python、ComfyUI 或下载模型。' + #13#10#13#10 +
   '这是公开测试版，可能存在 Bug，不保证及时更新修复。';
@@ -115,6 +122,8 @@ begin
  ExtractTemporaryFile('Apply-Integration.ps1');
  ExtractTemporaryFile('manifest.json');
  ExtractTemporaryFile('ZZXLAB.ico');
+ ExtractTemporaryFile('{#BrandIconName}');
+ ExtractTemporaryFile('brand-icon.json');
  ExtractTemporaryFiles('{tmp}\payload\*');
  WizardForm.StatusLabel.Caption := '正在检查原版文件、编辑器版本和已有安装记录…';
  if (not Exec(PowerShell, IntegrationArgs('CheckInstall', ExpandConstant('{tmp}')), '', SW_HIDE, ewWaitUntilTerminated, ExitCode)) or (ExitCode <> 0) then

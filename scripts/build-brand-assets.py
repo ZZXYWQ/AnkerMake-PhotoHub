@@ -1,9 +1,11 @@
-"""Encode the approved handwritten ZZXLAB wordmark as Windows/install assets.
+"""Encode the user-provided original ZZXlab wordmark as Windows/install assets.
 
 The source artwork is checked in; this export only fits/encodes it and lays out
 installer labels. It never redraws the logo with an unrelated system font.
 """
 from pathlib import Path
+import hashlib
+import json
 from PIL import Image, ImageDraw, ImageFont
 
 root = Path(__file__).resolve().parents[1] / 'installer' / 'branding'
@@ -30,8 +32,13 @@ mark = fit_wordmark((164,110), .88)
 banner.paste(mark, (0,22), mark)
 draw = ImageDraw.Draw(banner)
 font = 'C:/Windows/Fonts/seguisb.ttf'
-for text,y,size,color in [('AnkerMake',170,14,'white'),('PhotoHub',194,18,'white'),('0.8.7 PUBLIC BETA',274,10,'#ffff00'),('BRANDING 1',292,9,'#00aaff')]:
+for text,y,size,color in [('AnkerMake',170,14,'white'),('PhotoHub',194,18,'white'),('0.8.7.4 BETA',284,10,'#ffff00')]:
     draw.text((15,y),text,font=ImageFont.truetype(font,size),fill=color)
 banner.save(root / 'wizard.bmp')
-(root/'ZZXLAB.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><title>ZZXLAB handwritten yellow and cyan wordmark</title><image href="ZZXLAB.png" width="512" height="512"/></svg>\n',encoding='utf8')
+(root/'ZZXLAB.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><title>ZZXlab original handwritten yellow and cyan wordmark</title><image href="ZZXLAB.png" width="512" height="512"/></svg>\n',encoding='utf8')
+digest=hashlib.sha256((root/'ZZXLAB.ico').read_bytes()).hexdigest()
+name='ZZXlab-'+digest[:12]+'.ico'
+(root/name).write_bytes((root/'ZZXLAB.ico').read_bytes())
+(root/'brand-icon.json').write_text(json.dumps({'brand':'ZZXlab','file':name,'sha256':digest,'sourceSha256':hashlib.sha256((root/'ZZXLAB-wordmark.png').read_bytes()).hexdigest()},indent=2)+'\n',encoding='utf8')
+(root/'brand-assets.iss').write_text('#define BrandIconName "'+name+'"\n',encoding='utf8')
 print('Encoded approved wordmark: PNG, ICO (9 sizes), SVG wrapper and wizard BMP assets')
